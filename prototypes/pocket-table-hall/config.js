@@ -13,6 +13,7 @@ window.CONFIG = {
   hop_duration_s: { value: 0.12, min: 0.05, max: 0.25, step: 0.01 }, // single-step hop duration in seconds
   max_chain_duration_s: { value: 1.4, min: 0.6, max: 2.0, step: 0.1 }, // hard cap on chained jump+shortcut animation seconds
   hitstop_s: { value: 0.065, min: 0, max: 0.15, step: 0.005 }, // knockback impact pause in seconds
+  roll_anim_s: { value: 0.42, min: 0.2, max: 0.8, step: 0.02 }, // dice tumble animation duration in seconds
   ai_think_s: { value: 0.45, min: 0.15, max: 1.5, step: 0.05 }, // bot think pause before roll/pick in seconds
   turn_timeout_s: { value: 30, min: 10, max: 60, step: 5 }, // human turn timeout before AI fallback step in seconds
   toast_duration_s: { value: 3.0, min: 1.5, max: 5.0, step: 0.5 }, // first-trigger rule toast lifetime in seconds

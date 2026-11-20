@@ -4,12 +4,13 @@
 我想要开发设计一个在线桌游平台，我和可以和朋友通过手机或者电脑网页一起在这里玩一些经典的桌游
 我想先做一个飞行棋或者大富翁，可以创建房间，然后好友加入一起游玩。因为纸质的桌游不是每一次都会携带，但是直接通过手机打开某个网页就很简单，或者远在各地可以电脑一起连接游玩。能够随时随地创造快乐
 Locked design choices *(from /brainstorm & /design-review)*: 中式经典飞行棋（同色连跳 + 虚线飞跃航线）、极速经典 2–3 架飞机（10–15 分钟单局）、阳光纸木桌游箱 2.5D 轻实体触感（参考 Clubhouse Games 51）、375×540px 手机竖屏优先与电脑网页适配、桌角村规透明标签与 2.5–3.5s 首次触发提示、极简表情催促与一键再来一局。
+After play: 整体游戏功能没有大的问题，但是有很多可以优化的地方。1。掷骰子右边有三个按钮，但是没有告知是有什么用，并且点击也没有任何反馈，不知道有什么功能。2，掷骰子后不知道自己是扔了几，骰子结果应该在页面上显示，至少要证明你投掷的是这个数字。3.画面UI可以在做的好看一点，现在有点太平板了。4.画布地图可以画的更大一点。5.增加直接AI接管的按钮，而不是只有因为超时才能让AI接管，有的时候不想自己下，可以让电脑直接帮我进行操作。目前先只想到这些
 
 **Pitch:** A sunlit 2.5D web tabletop where 1–4 players (with named AI bots filling empty seats) play 10–15 minute Express Classic Chinese Aeroplane Chess with transparent house-rule toggles, crisp tactile hops, and one-tap rematches.
 
 **Genre:** Board game — Chinese Aeroplane Chess (`board-and-abstract`)
 
-**Controls:** Tap dice button or press `Space`/`Enter` to roll; tap a plane or numbered quick-pick cards (`1`–`4` or `ArrowLeft`/`ArrowRight`) to preview landing path and knockback warning, then tap again or press `Space`/`Enter` to confirm; `Q`/`W`/`E` for drawn tabletop reactions; `M` mute; `H` rules; `R` rematch.
+**Controls:** Tap dice button or press `Space`/`Enter` to roll; tap a plane or numbered quick-pick cards (`1`–`4` or `ArrowLeft`/`ArrowRight`) to preview landing path and knockback warning, then tap again or press `Space`/`Enter` to confirm; `Q`/`W`/`E` for drawn tabletop reactions; `A` toggle manual AI takeover; `M` mute; `H` rules; `R` rematch.
 
 **Question:** Does 2–3 plane Express Classic Chinese Aeroplane Chess with transparent house-rule toggles, tactile <=0.8s hops, and 375x540px touch/keyboard flow deliver a snappy 10–15 minute tabletop feel?
 
@@ -38,11 +39,11 @@ Tension spikes within 2–3 minutes as all 4 factions converge on the shared 52-
 
 ## Features
 - [x] Title setup card with 1–4 human/bot seat toggles, Express/Blitz/Classic presets (2/3/4 planes), and house-rule switches (`5/6 launch`, `triple-6 back to base`)
-- [x] Complete 15x15 symmetric 52-tile Chinese Aeroplane Chess board with same-color +4 jumps, 12-step dotted shortcut flights, knockback-to-hangar, and exact-roll bounce finish
-- [x] Four distinct drawn aircraft silhouettes + geometric bases + dual-channel outer tile/shortcut symbols in Sunlit Tabletop Craft 2.5D style (zero emoji)
-- [x] Hover-free 2-step preview-and-confirm controls (numbered quick-pick cards, dashed landing & knockback preview, dedicated confirm slot) plus full keyboard controls (`Space`, `Enter`, `1-4`, `Arrows`, `Q/W/E`, `M`, `H`, `R`)
-- [x] Transparent house-rule corner badges and 3s non-blocking first-trigger rule toasts, plus 3 drawn tabletop reaction badges (`催促`/`喝彩`/`惊呼`)
-- [x] Named AI bots filling empty seats with short think pauses plus 30s turn countdown and consecutive-timeout auto-pilot handoff/reclaim
+- [x] Enlarged 15x15 symmetric 52-tile bevelled wood-framed Chinese Aeroplane Chess board with same-color +4 jumps, 12-step dotted shortcut flights, knockback-to-hangar, and exact-roll bounce finish
+- [x] Four distinct 2.5D shaded aircraft silhouettes + geometric bases + dual-channel embossed outer tile/shortcut symbols and persistent rolled die proof banner in Sunlit Tabletop Craft 2.5D style (zero emoji)
+- [x] Hover-free 2-step preview-and-confirm controls (numbered quick-pick cards, dashed landing & knockback preview, dedicated confirm slot) plus full keyboard controls (`Space`, `Enter`, `1-4`, `Arrows`, `Q/W/E`, `A`, `M`, `H`, `R`)
+- [x] Transparent house-rule corner badges and 3s non-blocking first-trigger rule toasts, plus 3 labeled reaction buttons (`催`/`赞`/`惊`) with live floating speech bubbles, particles, and distinct SFX
+- [x] Named AI bots filling empty seats with short think pauses plus direct manual AI takeover button (`A`), 30s turn countdown, and consecutive-timeout auto-pilot handoff/reclaim
 - [ ] Web Audio synthesized tabletop SFX with mute toggle and Results screen with funny match titles, session scoreboard, and one-key Rematch
 
 ## Your systems
