@@ -65,3 +65,43 @@ Append-only audit trail of decisions made in autonomous mode.
 **Chosen:** Derived design/game-brief.md from design/gdd/game-concept.md (Express Classic 3-plane Chinese Aeroplane Chess, Sunlit Tabletop Craft 2.5D, local hot-seat + named AI stand-in) and proceeded directly to one-shot build
 **Reason:** Autonomous automation mode derives provisional defaults from the approved concept doc without prompting for Build it.
 **Category:** minor
+
+## 2026-11-20T18:58:00Z — prototype
+
+**Decision point:** Post-playtest Prototype Verdict & Next Step Transition after Iteration 1 (`db976eb`)
+**Options considered:** PROCEED / Keep going (advance to next required Studio Mode step `/art-bible`) vs PIVOT (`Change direction`) vs KILL (`Drop it`)
+**Chosen:** PROCEED — retain `prototypes/pocket-table-hall/` intact as validated playable reference and advance to Concept required step `/art-bible` (`one-shot-grow.sh guard pocket-table-hall` returned `guard root fail: package.json is at the root` because `/setup-engine` already scaffolded the Web root in `workflow: full`)
+**Reason:** User confirmed "进入下一环节，继续推进" after Iteration 1 addressed all 5 playtest items; root Web scaffold already exists, so growing is skipped and Studio Mode proceeds to Art Bible.
+**Category:** minor
+
+## 2026-11-20T18:58:30Z — art-bible
+
+**Decision point:** Phase 1: Art Bible Scope & Reference Framing
+**Options considered:** Full bible — all 9 sections (Recommended for `workflow: full`) / Visual identity core (sections 1–4 only) / Asset standards only (section 8)
+**Chosen:** Full bible — all 9 sections at `docs.density: thorough`, anchored on `design/gdd/game-concept.md` ("阳光纸木桌游箱" Sunlit Tabletop Craft + 5 additive orthogonal references: Clubhouse Games 51, Paper Mario: The Origami King, Traditional Chinese Print Aeroplane Chess & Stamp Craft, Oink Games, PlayingCards.io) and Iteration 1 playtest learnings
+**Reason:** `workflow: full` requires all 9 Art Bible sections before `/map-systems` and downstream Phase 3–4 gate checks.
+**Category:** minor
+
+## 2026-11-20T18:58:45Z — art-bible
+
+**Decision point:** Section 7: Art vs UX Conflicts & Accessibility-Preserving Resolutions
+**Options considered:** Pure maximized board & tilted stamp typography vs accessibility-preserving responsive sizing (`340–355px`), `0°` horizontal CJK stamp text, and Grounded Hybrid HTML/CSS controls
+**Chosen:** Accessibility-preserving resolutions across all 3 conflicts: (1) responsive board cap `min(calc(100vw - 12px), calc(100dvh - 180px))` (`340–355px` at `375×540px dvh`, `≥ 688px` desktop) preserving `≥ 44×44px` touch targets and zero vertical scroll; (2) tilt only stamp borders `3°–4°` (`≤ 6°` ceremony stamps) outside hangar hitboxes with CJK text strictly `0°` horizontal; (3) Grounded Hybrid layer (Canvas 2D board/pieces + native HTML/CSS outer controls with `:focus-visible` and `aria-live="polite"` + aligned Canvas hit proxies)
+**Reason:** Preserves WCAG AA readability, keyboard/IME/ARIA accessibility, and `375×540px dvh` zero-scroll requirement without breaking Sunlit Tabletop Craft aesthetic.
+**Category:** minor
+
+## 2026-11-20T18:59:00Z — art-bible
+
+**Decision point:** Section 8: Art vs Technical Asset Constraints Trade-Offs (MVP vs Vertical Slice)
+**Options considered:** Ideal Art Standard (custom rounded CJK Webfont + 256×256 raster paper/wood grain + native 3x offscreen canvas + per-frame `ctx.shadowBlur`) vs Constrained Technical Standard (system CJK sans + `tabular-nums`, 100% procedural Canvas 2D vectors, `DPR ≤ 2` offscreen static board cache, geometric layered contact shadows)
+**Chosen:** Constrained Technical Standard locked for MVP (`0 KB` Webfont, `0 KB` external raster textures, `DPR ≤ 2` offscreen static board cache, zero per-frame `ctx.shadowBlur`, `≤ 16` event particles / `≤ 40` confetti, `publicDir: false` Vite ES imports, `npm run build` `dist/` for production); optional lazy-loaded `≤ 128×128px` (`≤ 4KB` WebP) micro-grain baked once into static cache deferred to Vertical Slice
+**Reason:** Hard performance budgets (`≤ 200KB gzip`, `Fast 4G ≤ 2.0s`, `60fps / 16.6ms` frame budget on mobile WebViews) take precedence in autonomous mode while reserving Vertical Slice path.
+**Category:** minor
+
+## 2026-11-20T18:59:15Z — art-bible
+
+**Decision point:** Phase 5: AD-ART-BIBLE Gate Sign-Off
+**Options considered:** APPROVE (`design/art/art-bible.md` complete & consistent) / CONCERNS / REJECT / NOT ASSESSED
+**Chosen:** `AD-ART-BIBLE: APPROVE` — recorded `Status: Approved` and `AD-ART-BIBLE: APPROVED 2026-11-21` in `design/art/art-bible.md` after full disk re-read and consistency audit across all 9 sections
+**Reason:** All 9 sections at `docs.density: thorough` passed completeness, cross-section hex/lighting/line-rhythm/stamp-angle consistency, WCAG AA & colorblind safety (`CB-1`..`CB-7`), and engine constraint verification.
+**Category:** minor
