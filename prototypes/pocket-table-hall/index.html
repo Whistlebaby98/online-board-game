@@ -1,0 +1,1971 @@
+<!doctype html>
+<!-- PROTOTYPE - NOT FOR PRODUCTION -->
+<!-- Question: Does 2-3 plane Express Classic Chinese Aeroplane Chess with transparent house-rule toggles, tactile <=0.8s hops, and 375x540px touch/keyboard flow deliver a snappy 10-15 minute tabletop feel? -->
+<!-- Date: 2026-11-21 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Pocket Table Hall — Express Ludo</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #E9DFCF;
+    overflow: hidden;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  body { font-variant-numeric: tabular-nums; }
+  canvas { display: block; margin: 0 auto; cursor: pointer; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script src="config.js"></script>
+<script>
+'use strict';
+
+// ---- Built to be checked ----------------------------------------------------------------
+const params = new URLSearchParams(location.search);
+const tune = new Proxy({}, { get: (_, k) => CONFIG[k].value });
+const STEP = 1 / 60;
+let W = 1280, H = 720;
+let PORTRAIT = false;
+const PIXEL = false;
+const FONT = '"PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif';
+const TITLE = '口袋桌游厅 · 极速飞行棋';
+const SUBTITLE = 'Pocket Table Hall — Express Ludo';
+const CONTROLS = [
+  'Space / Enter: 掷骰与确认走子',
+  '1-4 / 左右键: 切换选机并预览落点',
+  'Q / W / E: 催促 / 喝彩 / 惊呼气泡',
+  'H: 村规详情 · M: 静音 · R: 再来一局',
+];
+const clock = window.GAME_CLOCK || { now: () => performance.now() / 1000 };
+const CHEAP = params.get('render') === 'cheap';
+let seed;
+function rng() {
+  seed = (seed + 0x6D2B79F5) | 0;
+  let t = Math.imul(seed ^ (seed >>> 15), seed | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+const events = [];
+
+// ---- Palette: Sunlit Tabletop Craft (WCAG AA >= 3:1 calibrated) -------------------------
+const PAL = {
+  oak: '#E9DFCF',
+  oakDark: '#D8CBB6',
+  oakGrain: '#DFD3C0',
+  ivory: '#FAF7F2',
+  ivoryLip: '#D9CFC0',
+  cardWarm: '#F5EFE6',
+  ink: '#2E2620',
+  inkMuted: '#5C4D42',
+  white: '#FFFFFF',
+  shadow: 'rgba(46, 38, 32, 0.16)',
+  shadowSoft: 'rgba(46, 38, 32, 0.08)',
+};
+
+const FACTIONS = [
+  { id: 0, name: '红方', botName: 'AI 小红', color: '#D64242', light: '#FCE8E8', dark: '#9B2727', shape: 'diamond', craftName: '尖翼喷气机', shapeLabel: '菱形底座' },
+  { id: 1, name: '黄方', botName: 'AI 阿黄', color: '#B87A00', fillBright: '#D99B16', light: '#FDF3D7', dark: '#7A5000', shape: 'square', craftName: '双翼螺旋桨', shapeLabel: '方形底座' },
+  { id: 2, name: '蓝方', botName: 'AI 小蓝', color: '#336DC4', light: '#E6EFFC', dark: '#214A8A', shape: 'circle', craftName: '前掠水上机', shapeLabel: '圆形底座' },
+  { id: 3, name: '绿方', botName: 'AI 绿绿', color: '#2F8558', light: '#E5F4EC', dark: '#1D593A', shape: 'triangle', craftName: '双尾侦察机', shapeLabel: '三角形底座' },
+];
+
+// ---- Screen & Coordinate Transform ------------------------------------------------------
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+function fit() {
+  const portrait = innerHeight > innerWidth && innerWidth < 680;
+  PORTRAIT = portrait;
+  if (portrait) {
+    W = 375;
+    H = Math.max(540, Math.min(720, Math.round(375 * innerHeight / Math.max(1, innerWidth))));
+  } else {
+    W = 1280;
+    H = 720;
+  }
+  const k = Math.min(innerWidth / W, innerHeight / H);
+  const s = PIXEL ? Math.max(1, Math.floor(k)) : k;
+  const r = PIXEL ? 1 : s * (devicePixelRatio || 1);
+  canvas.width = Math.round(W * r);
+  canvas.height = Math.round(H * r);
+  canvas.style.width = Math.round(W * s) + 'px';
+  canvas.style.height = Math.round(H * s) + 'px';
+  canvas.style.marginTop = Math.max(0, Math.floor((innerHeight - H * s) / 2)) + 'px';
+  canvas.style.imageRendering = PIXEL ? 'pixelated' : 'auto';
+  ctx.setTransform(r, 0, 0, r, 0, 0);
+  ctx.imageSmoothingEnabled = !PIXEL;
+}
+addEventListener('resize', fit);
+fit();
+
+function clear(c) { ctx.fillStyle = c; ctx.fillRect(0, 0, W, H); }
+function text(s, x, y, size, c, align = 'center', weight = '600') {
+  ctx.fillStyle = c;
+  ctx.font = `${weight} ${size}px ${FONT}`;
+  ctx.textAlign = align;
+  ctx.textBaseline = 'middle';
+  ctx.fillText(s, x, y);
+}
+
+// ---- Hitbox Registry for Touch & Mouse --------------------------------------------------
+let hitBoxes = [];
+function addHitBox(x, y, w, h, fn) {
+  hitBoxes.push({ x, y, w, h, fn });
+}
+
+// ---- Input ------------------------------------------------------------------------------
+const down = new Set(), hit = new Set();
+const pressed = code => hit.has(code);
+addEventListener('keydown', e => {
+  startAudio();
+  if (!e.repeat) {
+    down.add(e.code);
+    hit.add(e.code);
+  }
+  if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
+  onHumanActivity();
+});
+addEventListener('keyup', e => down.delete(e.code));
+addEventListener('blur', () => down.clear());
+
+canvas.addEventListener('pointerdown', e => {
+  startAudio();
+  onHumanActivity();
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const px = (e.clientX - rect.left) * (W / rect.width);
+  const py = (e.clientY - rect.top) * (H / rect.height);
+  for (let i = hitBoxes.length - 1; i >= 0; i--) {
+    const b = hitBoxes[i];
+    if (px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h) {
+      b.fn();
+      break;
+    }
+  }
+});
+
+// ---- Audio: Web Audio Procedural Tabletop SFX -------------------------------------------
+let audio = null, muted = false;
+function startAudio() {
+  if (!audio) {
+    const AC = window.GAME_AUDIO || window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ac = typeof AC === 'function' ? new AC() : AC;
+    if (ac && ac.createGain) {
+      const out = ac.createGain();
+      out.gain.value = muted ? 0 : tune.volume;
+      out.connect(ac.destination);
+      audio = { ac, out };
+    }
+  }
+  if (audio && audio.ac && (audio.ac.state === 'suspended' || audio.ac.state === 'interrupted')) {
+    if (typeof audio.ac.resume === 'function') audio.ac.resume().catch(() => {});
+  }
+}
+function setMuted(m) {
+  muted = m;
+  if (audio && audio.out) audio.out.gain.value = m ? 0 : tune.volume;
+}
+addEventListener('tune', () => setMuted(muted));
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && audio && audio.ac && audio.ac.state !== 'running') {
+    if (typeof audio.ac.resume === 'function') audio.ac.resume().catch(() => {});
+  }
+});
+
+function tone(freq, dur, type = 'triangle', vol = 0.22, slideTo = null, delay = 0) {
+  if (!audio || muted || !audio.ac) return;
+  const t = audio.ac.currentTime + delay;
+  const o = audio.ac.createOscillator();
+  const g = audio.ac.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  g.gain.setValueAtTime(Math.max(0.001, vol), t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g).connect(audio.out);
+  o.start(t);
+  o.stop(t + dur + 0.01);
+}
+function playSfx(kind) {
+  if (muted || !audio) return;
+  if (kind === 'roll') {
+    tone(240, 0.045, 'triangle', 0.16, 180, 0);
+    tone(310, 0.045, 'triangle', 0.15, 220, 0.06);
+    tone(270, 0.06, 'triangle', 0.18, 190, 0.13);
+  } else if (kind === 'select') {
+    tone(520, 0.055, 'sine', 0.14, 640);
+  } else if (kind === 'hop') {
+    tone(380, 0.07, 'triangle', 0.18, 520);
+  } else if (kind === 'jump') {
+    tone(520, 0.08, 'sine', 0.2, 740);
+    tone(740, 0.09, 'sine', 0.18, 920, 0.07);
+  } else if (kind === 'shortcut') {
+    tone(440, 0.24, 'sine', 0.22, 1080);
+    tone(660, 0.18, 'triangle', 0.14, 1320, 0.08);
+  } else if (kind === 'knockback') {
+    tone(190, 0.18, 'sawtooth', 0.24, 68);
+    tone(120, 0.22, 'triangle', 0.26, 52, 0.03);
+  } else if (kind === 'finish') {
+    tone(523.25, 0.12, 'triangle', 0.22, null, 0);
+    tone(659.25, 0.12, 'triangle', 0.22, null, 0.09);
+    tone(783.99, 0.18, 'triangle', 0.25, null, 0.18);
+  } else if (kind === 'win') {
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, 0.22, 'triangle', 0.22, null, i * 0.1));
+  } else if (kind === 'nudge') {
+    tone(620, 0.06, 'sine', 0.16, 480);
+    tone(620, 0.06, 'sine', 0.14, 480, 0.09);
+  }
+}
+
+// ---- Chinese Classic Aeroplane Chess Geometry (15x15 Grid) ------------------------------
+const OUTER_TRACK = [
+  // Left arm top edge (0..5)
+  [0, 6], [1, 6], [2, 6], [3, 6], [4, 6], [5, 6],
+  // Top arm left edge (6..11)
+  [6, 5], [6, 4], [6, 3], [6, 2], [6, 1], [6, 0],
+  // Top center (12)
+  [7, 0],
+  // Top arm right edge (13..18)
+  [8, 0], [8, 1], [8, 2], [8, 3], [8, 4], [8, 5],
+  // Right arm top edge (19..24)
+  [9, 6], [10, 6], [11, 6], [12, 6], [13, 6], [14, 6],
+  // Right center (25)
+  [14, 7],
+  // Right arm bottom edge (26..31)
+  [14, 8], [13, 8], [12, 8], [11, 8], [10, 8], [9, 8],
+  // Bottom arm right edge (32..37)
+  [8, 9], [8, 10], [8, 11], [8, 12], [8, 13], [8, 14],
+  // Bottom center (38)
+  [7, 14],
+  // Bottom arm left edge (39..44)
+  [6, 14], [6, 13], [6, 12], [6, 11], [6, 10], [6, 9],
+  // Left arm bottom edge (45..50)
+  [5, 8], [4, 8], [3, 8], [2, 8], [1, 8], [0, 8],
+  // Left center (51)
+  [0, 7],
+];
+
+function tileColor(outerIdx) {
+  return (outerIdx + 1) % 4; // 0=Red, 1=Yellow, 2=Blue, 3=Green
+}
+
+const READY_CELLS = [
+  [0.45, 5.2],   // Red
+  [9.8, 0.45],   // Yellow
+  [14.55, 9.8],  // Blue
+  [5.2, 14.55],  // Green
+];
+
+const HANGAR_SLOTS = [
+  [[1.3, 1.3], [3.3, 1.3], [1.3, 3.3], [3.3, 3.3]],          // Red (0..4.6, 0..4.6)
+  [[11.7, 1.3], [13.7, 1.3], [11.7, 3.3], [13.7, 3.3]],      // Yellow
+  [[11.7, 11.7], [13.7, 11.7], [11.7, 13.7], [13.7, 13.7]],  // Blue
+  [[1.3, 11.7], [3.3, 11.7], [1.3, 13.7], [3.3, 13.7]],      // Green
+];
+
+const HOME_STRETCH = [
+  [[1, 7], [2, 7], [3, 7], [4, 7], [5, 7]],       // Red
+  [[7, 1], [7, 2], [7, 3], [7, 4], [7, 5]],       // Yellow
+  [[13, 7], [12, 7], [11, 7], [10, 7], [9, 7]],   // Blue
+  [[7, 13], [7, 12], [7, 11], [7, 10], [7, 9]],   // Green
+];
+
+const FINISH_SLOTS = [
+  [[6.42, 7.12], [6.42, 7.88], [6.88, 7.5], [6.15, 7.5]],   // Red left wedge
+  [[7.12, 6.42], [7.88, 6.42], [7.5, 6.88], [7.5, 6.15]],   // Yellow top wedge
+  [[8.58, 7.12], [8.58, 7.88], [8.12, 7.5], [8.85, 7.5]],   // Blue right wedge
+  [[7.12, 8.58], [7.88, 8.58], [7.5, 8.12], [7.5, 8.85]],   // Green bottom wedge
+];
+
+const SHORTCUT_CROSS_TARGET = [
+  { victim: 2, progress: 57 }, // Red flies (9,6)->(9,8), crossing Blue home stretch step 5 (9,7)
+  { victim: 3, progress: 57 }, // Yellow flies (8,9)->(6,9), crossing Green home stretch step 5 (7,9)
+  { victim: 0, progress: 57 }, // Blue flies (5,8)->(5,6), crossing Red home stretch step 5 (5,7)
+  { victim: 1, progress: 57 }, // Green flies (6,5)->(8,5), crossing Yellow home stretch step 5 (7,5)
+];
+
+const PLANE_HEADING = [0, Math.PI * 0.5, Math.PI, -Math.PI * 0.5];
+
+function outerIdxFor(p, progress) {
+  return (13 * p + progress - 1) % 52;
+}
+
+function getPlaneGridPos(p, planeIdx, progress) {
+  if (progress < 0) return HANGAR_SLOTS[p][planeIdx];
+  if (progress === 0) return READY_CELLS[p];
+  if (progress <= 52) {
+    const idx = outerIdxFor(p, progress);
+    return [OUTER_TRACK[idx][0] + 0.5, OUTER_TRACK[idx][1] + 0.5];
+  }
+  if (progress <= 57) {
+    const c = HOME_STRETCH[p][progress - 53];
+    return [c[0] + 0.5, c[1] + 0.5];
+  }
+  return FINISH_SLOTS[p][planeIdx];
+}
+
+function getHeadingForProgress(p, progress) {
+  if (progress < 0) return Math.PI * 0.25 * (p * 2 - 1);
+  if (progress === 0) return PLANE_HEADING[p];
+  if (progress >= 53) return PLANE_HEADING[p];
+  const cur = getPlaneGridPos(p, 0, progress);
+  const nxt = getPlaneGridPos(p, 0, Math.min(58, progress + 1));
+  return Math.atan2(nxt[1] - cur[1], nxt[0] - cur[0]);
+}
+
+// ---- Seat Configuration & Session Scoreboard --------------------------------------------
+const seatTypes = ['human', 'bot', 'bot', 'bot']; // 'human' | 'bot' | 'off'
+const sessionWins = [0, 0, 0, 0];
+let sessionMatches = 0;
+
+function activeSeats() {
+  const arr = [];
+  for (let i = 0; i < 4; i++) if (seatTypes[i] !== 'off') arr.push(i);
+  return arr;
+}
+
+// ---- Rule Engine (Pure Deterministic Evaluation) ----------------------------------------
+function canLaunchRoll(roll) {
+  return tune.launch_on_five_or_six >= 1 ? (roll === 5 || roll === 6) : (roll === 6);
+}
+
+function describeProgress(progress) {
+  if (progress < 0) return '停机坪';
+  if (progress === 0) return '起飞点';
+  if (progress <= 52) return `外圈 ${progress}/52`;
+  if (progress <= 57) return `冲刺 ${progress - 52}/5`;
+  return '已入终';
+}
+
+function evaluateMove(stateObj, p, planeIdx, roll) {
+  const plane = stateObj.planes[p][planeIdx];
+  const startProg = plane.progress;
+  if (startProg >= 58) return null;
+
+  if (startProg < 0) {
+    if (!canLaunchRoll(roll)) return null;
+    return {
+      planeIdx,
+      fromProg: -1,
+      toProg: 0,
+      waypoints: [-1, 0],
+      events: ['launch'],
+      knockouts: [],
+      tag: '起飞',
+      score: 48,
+    };
+  }
+
+  // Step along track, bouncing if > 58
+  const rawSteps = [];
+  let cur = startProg;
+  let dir = 1;
+  for (let s = 0; s < roll; s++) {
+    if (cur === 58) dir = -1;
+    cur += dir;
+    rawSteps.push(cur);
+  }
+
+  let landing = cur;
+  const moveEvents = [];
+  const waypoints = [startProg, ...rawSteps];
+
+  if (landing === 58) {
+    moveEvents.push('finish');
+  } else if (landing >= 1 && landing < 52) {
+    if (landing === 20) {
+      moveEvents.push('shortcut');
+      landing = 32;
+      waypoints.push(32);
+    } else if (landing % 4 === 0 && landing !== 32) {
+      moveEvents.push('jump');
+      landing += 4;
+      waypoints.push(landing);
+      if (landing === 20) {
+        moveEvents.push('shortcut');
+        landing = 32;
+        waypoints.push(32);
+      }
+    }
+  }
+
+  // Detect knockouts at intermediate shortcut crossing and final outer track landing
+  const knockouts = [];
+  if (moveEvents.includes('shortcut')) {
+    const cross = SHORTCUT_CROSS_TARGET[p];
+    if (seatTypes[cross.victim] !== 'off') {
+      stateObj.planes[cross.victim].forEach((ep, eIdx) => {
+        if (ep.progress === cross.progress) {
+          knockouts.push({ player: cross.victim, planeIdx: eIdx, atProg: cross.progress });
+        }
+      });
+    }
+  }
+
+  if (landing >= 1 && landing <= 52) {
+    const landOuter = outerIdxFor(p, landing);
+    for (let op = 0; op < 4; op++) {
+      if (op === p || seatTypes[op] === 'off') continue;
+      stateObj.planes[op].forEach((ep, eIdx) => {
+        if (ep.progress >= 1 && ep.progress <= 52 && outerIdxFor(op, ep.progress) === landOuter) {
+          knockouts.push({ player: op, planeIdx: eIdx, atProg: landing });
+        }
+      });
+    }
+  }
+
+  let tag = `走${roll}格`;
+  if (landing === 58) tag = '入终!';
+  else if (knockouts.length > 0) tag = '撞飞!';
+  else if (moveEvents.includes('shortcut')) tag = '飞跃+12!';
+  else if (moveEvents.includes('jump')) tag = '连跳+4!';
+  else if (dir < 0) tag = '终点反弹';
+
+  let score = (landing - startProg) * 2;
+  if (landing === 58) score += 120;
+  if (knockouts.length > 0) score += 90 * knockouts.length;
+  if (moveEvents.includes('shortcut')) score += 65;
+  if (moveEvents.includes('jump')) score += 28;
+  if (startProg === 0) score += 18;
+  score += landing * 0.35;
+
+  return {
+    planeIdx,
+    fromProg: startProg,
+    toProg: landing,
+    waypoints,
+    events: moveEvents,
+    knockouts,
+    tag,
+    score,
+  };
+}
+
+function getLegalMoves(stateObj, p, roll) {
+  const moves = [];
+  const count = stateObj.planeCount;
+  for (let i = 0; i < count; i++) {
+    const m = evaluateMove(stateObj, p, i, roll);
+    if (m) moves.push(m);
+  }
+  return moves;
+}
+
+// ---- Game State & Lifecycle -------------------------------------------------------------
+let scene, state;
+
+function reset() {
+  seed = Number(params.get('seed')) || CONFIG.seed;
+  const planeCount = Math.max(2, Math.min(4, Math.round(tune.planes_per_player)));
+  const active = activeSeats();
+  if (active.length < 2) {
+    seatTypes[0] = 'human';
+    seatTypes[1] = 'bot';
+  }
+  const planes = [[], [], [], []];
+  for (let p = 0; p < 4; p++) {
+    for (let i = 0; i < planeCount; i++) {
+      const startReady = (tune.start_with_one_ready >= 1 && i === 0 && seatTypes[p] !== 'off');
+      planes[p].push({ progress: startReady ? 0 : -1 });
+    }
+  }
+  const firstSeat = activeSeats()[0];
+  state = {
+    t: 0,
+    score: 0,
+    gained: '',
+    planeCount,
+    planes,
+    currentTurn: firstSeat,
+    phase: 'await_roll', // await_roll | rolling | await_pick | animating
+    roll: 1,
+    rollTimer: 0,
+    pickDebounce: 0,
+    legalMoves: [],
+    selectedMoveIdx: 0,
+    consecutiveSixes: 0,
+    turnCount: 1,
+    turnTimer: tune.turn_timeout_s,
+    aiTimer: tune.ai_think_s,
+    consecutiveTimeouts: [0, 0, 0, 0],
+    autoPilot: [false, false, false, false],
+    seenToasts: { launch56: false, jump: false, shortcut: false, triple6: false },
+    toast: null, // { text, t, maxT }
+    reaction: null, // { player, kind, label, t, maxT }
+    anim: null, // { player, move, segments, segIdx, segT, totalT, duration, done }
+    hitstop: 0,
+    shakeT: 0,
+    shakeAmp: 0,
+    showRulesDrawer: false,
+    winner: -1,
+    stats: {
+      rolls: [0, 0, 0, 0],
+      sixes: [0, 0, 0, 0],
+      jumps: [0, 0, 0, 0],
+      shortcuts: [0, 0, 0, 0],
+      knockouts: [0, 0, 0, 0],
+      knockedOut: [0, 0, 0, 0],
+    },
+    awards: [],
+  };
+}
+
+function showToast(txt) {
+  state.toast = { text: txt, t: 0, maxT: tune.toast_duration_s };
+}
+
+function showReaction(p, kind) {
+  const labels = {
+    urge: '快点出招!',
+    cheer: '好棋漂亮!',
+    shock: '太惨了吧!',
+  };
+  state.reaction = { player: p, kind, label: labels[kind] || '干得漂亮!', t: 0, maxT: 2.2 };
+  events.push({ type: 'reaction', player: p, kind });
+  playSfx('nudge');
+}
+
+function onHumanActivity() {
+  if (scene !== 'play' || !state) return;
+  const p = state.currentTurn;
+  if (seatTypes[p] === 'human' && state.autoPilot[p]) {
+    state.autoPilot[p] = false;
+    state.consecutiveTimeouts[p] = 0;
+    state.turnTimer = tune.turn_timeout_s;
+    showToast(`${FACTIONS[p].name} 已取回操作控制权`);
+  }
+}
+
+function nextActiveSeat(afterSeat) {
+  for (let offset = 1; offset <= 4; offset++) {
+    const idx = (afterSeat + offset) % 4;
+    if (seatTypes[idx] !== 'off') return idx;
+  }
+  return afterSeat;
+}
+
+function advanceTurn(grantBonus) {
+  const p = state.currentTurn;
+  const allFinished = state.planes[p].every(pl => pl.progress === 58);
+  if (allFinished) {
+    finishMatch(p);
+    return;
+  }
+  if (grantBonus) {
+    state.phase = 'await_roll';
+    state.turnTimer = tune.turn_timeout_s;
+    state.aiTimer = tune.ai_think_s;
+    return;
+  }
+  state.consecutiveSixes = 0;
+  state.currentTurn = nextActiveSeat(p);
+  state.turnCount++;
+  state.phase = 'await_roll';
+  state.turnTimer = tune.turn_timeout_s;
+  state.aiTimer = tune.ai_think_s;
+}
+
+function finishMatch(winnerIdx) {
+  state.winner = winnerIdx;
+  sessionWins[winnerIdx]++;
+  sessionMatches++;
+  const who = seatTypes[winnerIdx] === 'bot' ? FACTIONS[winnerIdx].botName : `${FACTIONS[winnerIdx].name}玩家`;
+  state.gained = `${who} 率先全机入终获胜`;
+  state.score = state.turnCount;
+
+  // Compute funny match awards from authoritative state.stats
+  const active = activeSeats();
+  const bestBy = arr => active.reduce((best, i) => (arr[i] > arr[best] ? i : best), active[0]);
+  const sixKing = bestBy(state.stats.sixes);
+  const aceFighter = bestBy(state.stats.knockouts);
+  const targetKing = bestBy(state.stats.knockedOut);
+  const fName = i => (seatTypes[i] === 'bot' ? FACTIONS[i].botName : FACTIONS[i].name);
+
+  state.awards = [
+    { title: '连6幸运星', holder: fName(sixKing), detail: `共掷出 ${state.stats.sixes[sixKing]} 次六点` },
+    { title: '空中王牌机', holder: fName(aceFighter), detail: `撞飞对手 ${state.stats.knockouts[aceFighter]} 架次` },
+    { title: '耐撞头号靶', holder: fName(targetKing), detail: `被撞返航 ${state.stats.knockedOut[targetKing]} 次` },
+  ];
+  playSfx('win');
+  events.push({ type: 'win', winner: winnerIdx, turns: state.turnCount });
+  scene = 'results';
+}
+
+function beginRoll() {
+  if (state.phase !== 'await_roll') return;
+  const p = state.currentTurn;
+  state.phase = 'rolling';
+  state.rollTimer = 0.28;
+  state.roll = Math.floor(rng() * 6) + 1;
+  state.stats.rolls[p]++;
+  if (state.roll === 6) state.stats.sixes[p]++;
+  playSfx('roll');
+  events.push({ type: 'roll', player: p, roll: state.roll });
+}
+
+function resolveRoll() {
+  const p = state.currentTurn;
+  const roll = state.roll;
+
+  if (roll === 6) state.consecutiveSixes++;
+  else state.consecutiveSixes = 0;
+
+  // Triple-6 penalty house rule
+  if (tune.triple_six_penalty >= 1 && state.consecutiveSixes >= 3) {
+    let victimIdx = -1;
+    let maxProg = -1;
+    state.planes[p].forEach((pl, idx) => {
+      if (pl.progress >= 1 && pl.progress <= 52 && pl.progress > maxProg) {
+        maxProg = pl.progress;
+        victimIdx = idx;
+      }
+    });
+    if (victimIdx >= 0) {
+      state.planes[p][victimIdx].progress = -1;
+      state.shakeT = 0.25;
+      state.shakeAmp = tune.shake_intensity;
+      playSfx('knockback');
+      showToast(`村规触发【三连6回巢】：${FACTIONS[p].name} #${victimIdx + 1}机返航!`);
+    } else if (!state.seenToasts.triple6) {
+      showToast('村规触发【三连6回巢】：无外圈机受罚，本回合结束');
+    }
+    state.seenToasts.triple6 = true;
+    advanceTurn(false);
+    return;
+  }
+
+  const legal = getLegalMoves(state, p, roll);
+  state.legalMoves = legal;
+  state.selectedMoveIdx = 0;
+
+  if (legal.length === 0) {
+    const req = tune.launch_on_five_or_six >= 1 ? '5或6' : '6';
+    if (seatTypes[p] === 'human') showToast(`掷出 ${roll} 点 · 暂无可走棋子（需 ${req} 起飞）`);
+    advanceTurn(roll === 6);
+    return;
+  }
+
+  // Pick highest scoring move by default so keyboard/AI preview highlights smart option
+  let bestIdx = 0;
+  for (let i = 1; i < legal.length; i++) {
+    if (legal[i].score > legal[bestIdx].score) bestIdx = i;
+  }
+  state.selectedMoveIdx = bestIdx;
+  state.phase = 'await_pick';
+  state.pickDebounce = 0.28;
+  state.turnTimer = tune.turn_timeout_s;
+  state.aiTimer = tune.ai_think_s;
+}
+
+function buildAnimSegments(p, move) {
+  const segs = [];
+  const pts = move.waypoints;
+  const totalWaypoints = pts.length - 1;
+  const baseHop = tune.hop_duration_s;
+  let estTotal = 0;
+  for (let i = 0; i < totalWaypoints; i++) {
+    const a = pts[i], b = pts[i + 1];
+    const diff = Math.abs(b - a);
+    const kind = (a < 0 && b === 0) ? 'launch' : (diff >= 10 ? 'shortcut' : (diff === 4 ? 'jump' : 'step'));
+    const d = kind === 'shortcut' ? 0.34 : (kind === 'jump' ? 0.22 : (kind === 'launch' ? 0.24 : baseHop));
+    estTotal += d;
+    segs.push({ from: getPlaneGridPos(p, move.planeIdx, a), to: getPlaneGridPos(p, move.planeIdx, b), dur: d, kind });
+  }
+  const maxD = move.events.length > 0 ? tune.max_chain_duration_s : 0.78;
+  const scale = estTotal > maxD ? maxD / estTotal : 1;
+  segs.forEach(s => { s.dur *= scale; });
+  return segs;
+}
+
+function commitMove(move) {
+  const p = state.currentTurn;
+  const segs = buildAnimSegments(p, move);
+  state.phase = 'animating';
+  state.anim = {
+    player: p,
+    move,
+    segs,
+    segIdx: 0,
+    segT: 0,
+    pos: segs[0].from.slice(),
+    heading: getHeadingForProgress(p, move.toProg),
+    arcLift: 0,
+  };
+  if (segs[0].kind === 'shortcut') playSfx('shortcut');
+  else if (segs[0].kind === 'jump') playSfx('jump');
+  else playSfx('hop');
+  events.push({ type: 'move', player: p, plane: move.planeIdx, to: move.toProg });
+}
+
+function finalizeMove() {
+  const p = state.currentTurn;
+  const move = state.anim.move;
+  state.planes[p][move.planeIdx].progress = move.toProg;
+
+  if (move.events.includes('jump')) state.stats.jumps[p]++;
+  if (move.events.includes('shortcut')) state.stats.shortcuts[p]++;
+
+  // Apply knockouts
+  if (move.knockouts.length > 0) {
+    move.knockouts.forEach(ko => {
+      state.planes[ko.player][ko.planeIdx].progress = -1;
+      state.stats.knockouts[p]++;
+      state.stats.knockedOut[ko.player]++;
+    });
+    state.hitstop = tune.hitstop_s;
+    state.shakeT = 0.22;
+    state.shakeAmp = tune.shake_intensity;
+    playSfx('knockback');
+    if (seatTypes[move.knockouts[0].player] === 'bot' && rng() < 0.55) {
+      showReaction(move.knockouts[0].player, 'shock');
+    }
+  } else if (move.toProg === 58) {
+    playSfx('finish');
+  }
+
+  // First-trigger transparent rule toasts
+  if (move.fromProg < 0 && state.roll === 5 && tune.launch_on_five_or_six >= 1 && !state.seenToasts.launch56) {
+    state.seenToasts.launch56 = true;
+    showToast('村规触发【5/6 起飞】：掷出 5 点同样可以起飞！');
+  } else if (move.events.includes('shortcut') && !state.seenToasts.shortcut) {
+    state.seenToasts.shortcut = true;
+    showToast('中式规则【虚线飞跃】：沿同色航线直飞 12 格！');
+  } else if (move.events.includes('jump') && !state.seenToasts.jump) {
+    state.seenToasts.jump = true;
+    showToast('中式规则【同色连跳】：踩中同色格向前连跳 4 格！');
+  }
+
+  state.score += Math.max(1, move.toProg - Math.max(0, move.fromProg));
+  state.anim = null;
+  advanceTurn(state.roll === 6);
+}
+
+// ---- Scenes -----------------------------------------------------------------------------
+const scenes = {
+  figures: {
+    update(dt) { state.t += dt; },
+    draw() {
+      drawTableBackground();
+      if (PORTRAIT) {
+        text('双通道棋子与核心实体图鉴', W / 2, 28, 18, PAL.ink, 'center', '700');
+        FACTIONS.forEach((f, i) => {
+          const x = 14 + (i % 2) * 176;
+          const y = 54 + Math.floor(i / 2) * 175;
+          drawCard(x, y, 168, 162, PAL.ivory);
+          drawAircraft(x + 84, y + 66, 2.2, -Math.PI * 0.5, f, false, 0);
+          text(`${f.name} · ${f.craftName}`, x + 84, y + 124, 13, PAL.ink, 'center', '700');
+          text(f.shapeLabel, x + 84, y + 144, 12, PAL.inkMuted, 'center', '600');
+        });
+        drawCard(14, 412, 347, 114, PAL.ivory);
+        drawWoodenDie(74, 464, 54, 6, 0);
+        text('2.5D 木质骰子 · 飞跃格 · 实体互动', 222, 464, 13, PAL.ink, 'center', '700');
+        return;
+      }
+      drawCard(260, 26, 760, 62, PAL.ivory);
+      text('阳光纸木桌游箱 · 四方双通道棋子与核心实体图鉴', W / 2, 57, 24, PAL.ink, 'center', '700');
+
+      FACTIONS.forEach((f, i) => {
+        const cx = 64 + i * 294;
+        const cy = 116;
+        drawCard(cx, cy, 270, 272, PAL.ivory);
+        drawDualShapeBadge(cx + 135, cy + 204, 14, f);
+        drawAircraft(cx + 135, cy + 122, 3.2, -Math.PI * 0.5, f, true, 0);
+        text(`${f.name} · ${f.craftName}`, cx + 135, cy + 236, 18, PAL.ink, 'center', '700');
+        text(`${f.shapeLabel}（WCAG 双通道）`, cx + 135, cy + 264, 15, PAL.inkMuted, 'center', '600');
+      });
+
+      // Row 2: 2.5D Wooden Die, Dual-channel Tile, and 3 Drawn Reaction Badges
+      drawCard(64, 416, 360, 264, PAL.ivory);
+      drawWoodenDie(244, 524, 96, 6, 0.08);
+      text('2.5D 木质骰子', 244, 618, 20, PAL.ink, 'center', '700');
+      text('实体厚倒角与接触投影', 244, 648, 15, PAL.inkMuted, 'center', '600');
+
+      drawCard(460, 416, 360, 264, PAL.ivory);
+      drawTileSample(640, 524);
+      text('双通道连跳与虚线飞跃格', 640, 618, 20, PAL.ink, 'center', '700');
+      text('色相 + 几何徽记双重辨识', 640, 648, 15, PAL.inkMuted, 'center', '600');
+
+      drawCard(856, 416, 360, 264, PAL.ivory);
+      drawReactionIcon(932, 522, 28, 'urge', PAL.ink);
+      drawReactionIcon(1036, 522, 28, 'cheer', FACTIONS[0].color);
+      drawReactionIcon(1140, 522, 28, 'shock', FACTIONS[2].color);
+      text('实体桌面反应徽章', 1036, 618, 20, PAL.ink, 'center', '700');
+      text('纯矢量绘制（催促 / 喝彩 / 惊呼）', 1036, 648, 15, PAL.inkMuted, 'center', '600');
+    },
+  },
+
+  title: {
+    update(dt) {
+      state.t += dt;
+      if (pressed('Digit1')) setPreset(2);
+      if (pressed('Digit2')) setPreset(3);
+      if (pressed('Digit3')) setPreset(4);
+      if (pressed('Enter') || pressed('Space')) {
+        reset();
+        scene = 'play';
+      }
+    },
+    draw() {
+      hitBoxes = [];
+      drawTableBackground();
+      if (PORTRAIT) drawTitlePortrait();
+      else drawTitleDesktop();
+    },
+  },
+
+  play: {
+    update(dt) {
+      state.t += dt;
+      if (pressed('Escape')) {
+        scene = 'title';
+        return;
+      }
+      if (pressed('KeyH')) state.showRulesDrawer = !state.showRulesDrawer;
+      if (pressed('KeyQ')) showReaction(0, 'urge');
+      if (pressed('KeyW')) showReaction(0, 'cheer');
+      if (pressed('KeyE')) showReaction(0, 'shock');
+
+      if (state.toast) {
+        state.toast.t += dt;
+        if (state.toast.t >= state.toast.maxT) state.toast = null;
+      }
+      if (state.reaction) {
+        state.reaction.t += dt;
+        if (state.reaction.t >= state.reaction.maxT) state.reaction = null;
+      }
+      if (state.shakeT > 0) state.shakeT = Math.max(0, state.shakeT - dt);
+      if (state.hitstop > 0) {
+        state.hitstop = Math.max(0, state.hitstop - dt);
+        return;
+      }
+
+      const p = state.currentTurn;
+      const isBot = seatTypes[p] === 'bot';
+
+      if (state.phase === 'rolling') {
+        state.rollTimer -= dt;
+        if (state.rollTimer <= 0) resolveRoll();
+        return;
+      }
+
+      if (state.phase === 'animating' && state.anim) {
+        const a = state.anim;
+        const seg = a.segs[a.segIdx];
+        a.segT += dt;
+        const raw = Math.min(1, a.segT / Math.max(0.01, seg.dur));
+        const ease = raw < 0.5 ? 2 * raw * raw : 1 - Math.pow(-2 * raw + 2, 2) / 2;
+        a.pos[0] = seg.from[0] + (seg.to[0] - seg.from[0]) * ease;
+        a.pos[1] = seg.from[1] + (seg.to[1] - seg.from[1]) * ease;
+        a.heading = Math.atan2(seg.to[1] - seg.from[1], seg.to[0] - seg.from[0]);
+        const liftScale = seg.kind === 'shortcut' ? 18 : (seg.kind === 'jump' ? 14 : 9);
+        a.arcLift = Math.sin(raw * Math.PI) * liftScale;
+        if (raw >= 1) {
+          a.segIdx++;
+          a.segT = 0;
+          if (a.segIdx >= a.segs.length) {
+            finalizeMove();
+          } else {
+            const nextKind = a.segs[a.segIdx].kind;
+            if (nextKind === 'shortcut') playSfx('shortcut');
+            else if (nextKind === 'jump') playSfx('jump');
+            else playSfx('hop');
+          }
+        }
+        return;
+      }
+
+      if (state.phase === 'await_roll') {
+        if (isBot || state.autoPilot[p]) {
+          state.aiTimer -= dt;
+          if (state.aiTimer <= 0) beginRoll();
+        } else {
+          if (pressed('Space') || pressed('Enter')) {
+            beginRoll();
+            return;
+          }
+          state.turnTimer -= dt;
+          if (state.turnTimer <= 0) {
+            state.consecutiveTimeouts[p]++;
+            if (state.consecutiveTimeouts[p] >= 2) {
+              state.autoPilot[p] = true;
+              showToast(`${FACTIONS[p].name} 连续超时，已切入AI托管（点击接管）`);
+            }
+            beginRoll();
+          }
+        }
+        return;
+      }
+
+      if (state.phase === 'await_pick') {
+        if (state.pickDebounce > 0) state.pickDebounce = Math.max(0, state.pickDebounce - dt);
+        if (isBot || state.autoPilot[p]) {
+          state.aiTimer -= dt;
+          if (state.aiTimer <= 0) commitMove(state.legalMoves[state.selectedMoveIdx]);
+        } else {
+          if (pressed('ArrowLeft') || pressed('ArrowUp')) {
+            state.selectedMoveIdx = (state.selectedMoveIdx - 1 + state.legalMoves.length) % state.legalMoves.length;
+            playSfx('select');
+          }
+          if (pressed('ArrowRight') || pressed('ArrowDown')) {
+            state.selectedMoveIdx = (state.selectedMoveIdx + 1) % state.legalMoves.length;
+            playSfx('select');
+          }
+          for (let d = 1; d <= 4; d++) {
+            if (pressed(`Digit${d}`)) {
+              const found = state.legalMoves.findIndex(m => m.planeIdx === d - 1);
+              if (found >= 0) {
+                state.selectedMoveIdx = found;
+                playSfx('select');
+              }
+            }
+          }
+          if ((pressed('Space') || pressed('Enter')) && state.pickDebounce <= 0) {
+            commitMove(state.legalMoves[state.selectedMoveIdx]);
+            return;
+          }
+          state.turnTimer -= dt;
+          if (state.turnTimer <= 0) {
+            state.consecutiveTimeouts[p]++;
+            if (state.consecutiveTimeouts[p] >= 2) {
+              state.autoPilot[p] = true;
+              showToast(`${FACTIONS[p].name} 连续超时，已切入AI托管（点击接管）`);
+            }
+            commitMove(state.legalMoves[state.selectedMoveIdx]);
+          }
+        }
+      }
+    },
+    draw() {
+      hitBoxes = [];
+      drawTableBackground();
+      if (PORTRAIT) drawPlayPortrait();
+      else drawPlayDesktop();
+      if (state.toast) drawToastBanner();
+      if (state.showRulesDrawer) drawRulesModal();
+    },
+  },
+
+  results: {
+    update(dt) {
+      state.t += dt;
+      if (pressed('Enter') || pressed('Space') || pressed('KeyR')) {
+        reset();
+        scene = 'play';
+      } else if (pressed('Escape')) {
+        scene = 'title';
+      }
+    },
+    draw() {
+      hitBoxes = [];
+      drawTableBackground();
+      drawResultsScreen();
+    },
+  },
+};
+
+function setPreset(count) {
+  CONFIG.planes_per_player.value = count;
+  if (count === 2) CONFIG.start_with_one_ready.value = 1;
+  playSfx('select');
+}
+
+// ---- Drawing Primitives (Sunlit 2.5D Cardstock & Aircraft Silhouettes) ------------------
+function roundRectPath(x, y, w, h, r) {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+function drawCard(x, y, w, h, fill = PAL.ivory, stroke = PAL.ink, lip = 4, r = 12) {
+  if (!CHEAP) {
+    ctx.fillStyle = PAL.shadow;
+    roundRectPath(x + 2, y + lip + 3, w, h, r);
+    ctx.fill();
+  }
+  ctx.fillStyle = PAL.ivoryLip;
+  roundRectPath(x, y + lip, w, h, r);
+  ctx.fill();
+  ctx.fillStyle = fill;
+  roundRectPath(x, y, w, h, r);
+  ctx.fill();
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function drawButton(x, y, w, h, label, bg, fg, fontSize, onClick, active = false) {
+  const lip = active ? 2 : 4;
+  drawCard(x, y, w, h, bg, PAL.ink, lip, 10);
+  text(label, x + w / 2, y + h / 2, fontSize, fg, 'center', '700');
+  addHitBox(x, y, w, h, () => {
+    playSfx('select');
+    onClick();
+  });
+}
+
+function drawTableBackground() {
+  clear(PAL.oak);
+  if (!CHEAP) {
+    ctx.strokeStyle = PAL.oakGrain;
+    ctx.lineWidth = 2;
+    for (let y = 36; y < H; y += 64) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.bezierCurveTo(W * 0.35, y - 6, W * 0.65, y + 6, W, y);
+      ctx.stroke();
+    }
+  }
+}
+
+function drawDualShapeBadge(cx, cy, r, faction) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.fillStyle = faction.fillBright || faction.color;
+  ctx.strokeStyle = PAL.ink;
+  ctx.lineWidth = Math.max(1.5, r * 0.14);
+  ctx.beginPath();
+  if (faction.shape === 'diamond') {
+    ctx.moveTo(0, -r);
+    ctx.lineTo(r, 0);
+    ctx.lineTo(0, r);
+    ctx.lineTo(-r, 0);
+  } else if (faction.shape === 'square') {
+    ctx.rect(-r * 0.82, -r * 0.82, r * 1.64, r * 1.64);
+  } else if (faction.shape === 'circle') {
+    ctx.arc(0, 0, r * 0.88, 0, Math.PI * 2);
+  } else {
+    ctx.moveTo(0, -r * 0.96);
+    ctx.lineTo(r * 0.92, r * 0.78);
+    ctx.lineTo(-r * 0.92, r * 0.78);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawAircraft(cx, cy, scale, angle, faction, lifted = false, liftPx = 0, labelNum = null) {
+  ctx.save();
+  // Contact shadow separates cleanly when lifted or airborne
+  const shY = cy + (lifted ? 5 : 2.5) + liftPx * 0.35;
+  const shR = 11 * scale * (lifted ? 0.95 : 1);
+  if (!CHEAP) {
+    ctx.fillStyle = lifted ? 'rgba(46,38,32,0.22)' : 'rgba(46,38,32,0.16)';
+    ctx.beginPath();
+    ctx.ellipse(cx + 1.5, shY, shR, shR * 0.68, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const drawY = cy - (lifted ? 4 : 0) - liftPx;
+  ctx.translate(cx, drawY);
+
+  // High-contrast dark-brown + white pulse halo for movable/selected aircraft (zero yellow clash)
+  if (lifted) {
+    const pulse = 1 + Math.sin(state.t * 6) * 0.08;
+    ctx.strokeStyle = PAL.white;
+    ctx.lineWidth = 4.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, 14 * scale * pulse, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = PAL.ink;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, 14.5 * scale * pulse, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Distinct geometric token base
+  drawDualShapeBadge(0, 0, 10.5 * scale, faction);
+
+  // Distinct aircraft silhouette per faction (4 clearly different outlines!)
+  ctx.save();
+  ctx.rotate(angle + Math.PI * 0.5); // shape points up (-Y) at rotation 0
+  ctx.scale(scale, scale);
+  ctx.fillStyle = PAL.ivory;
+  ctx.strokeStyle = PAL.ink;
+  ctx.lineWidth = 1.6;
+
+  ctx.beginPath();
+  if (faction.id === 0) {
+    // Red: Delta Jet (sleek supersonic delta wings)
+    ctx.moveTo(0, -9);
+    ctx.lineTo(2.4, -2);
+    ctx.lineTo(8.5, 4);
+    ctx.lineTo(2, 4.5);
+    ctx.lineTo(3.5, 8);
+    ctx.lineTo(-3.5, 8);
+    ctx.lineTo(-2, 4.5);
+    ctx.lineTo(-8.5, 4);
+    ctx.lineTo(-2.4, -2);
+  } else if (faction.id === 1) {
+    // Yellow: Biplane Prop (wide straight upper wing + stubby prop nose)
+    ctx.moveTo(0, -8.5);
+    ctx.lineTo(2, -4);
+    ctx.lineTo(8.8, -3.2);
+    ctx.lineTo(8.8, 0.5);
+    ctx.lineTo(2, 1.2);
+    ctx.lineTo(1.8, 5.5);
+    ctx.lineTo(4.2, 7.6);
+    ctx.lineTo(-4.2, 7.6);
+    ctx.lineTo(-1.8, 5.5);
+    ctx.lineTo(-2, 1.2);
+    ctx.lineTo(-8.8, 0.5);
+    ctx.lineTo(-8.8, -3.2);
+    ctx.lineTo(-2, -4);
+  } else if (faction.id === 2) {
+    // Blue: Swept Seaplane (rounded wingtips + twin pontoon bars)
+    ctx.moveTo(0, -8.5);
+    ctx.lineTo(2.5, -3);
+    ctx.lineTo(8.2, -5.2);
+    ctx.lineTo(7.4, -0.4);
+    ctx.lineTo(2.4, 2);
+    ctx.lineTo(2.2, 6);
+    ctx.lineTo(4.5, 7.5);
+    ctx.lineTo(-4.5, 7.5);
+    ctx.lineTo(-2.2, 6);
+    ctx.lineTo(-2.4, 2);
+    ctx.lineTo(-7.4, -0.4);
+    ctx.lineTo(-8.2, -5.2);
+    ctx.lineTo(-2.5, -3);
+  } else {
+    // Green: Twin-Tail Glider (forward canards + forked twin tail)
+    ctx.moveTo(0, -9);
+    ctx.lineTo(3.8, -4.5);
+    ctx.lineTo(1.8, -3);
+    ctx.lineTo(8.5, 1.2);
+    ctx.lineTo(7.5, 3.8);
+    ctx.lineTo(2.2, 2.5);
+    ctx.lineTo(3.6, 8);
+    ctx.lineTo(1.2, 8);
+    ctx.lineTo(0, 5.2);
+    ctx.lineTo(-1.2, 8);
+    ctx.lineTo(-3.6, 8);
+    ctx.lineTo(-2.2, 2.5);
+    ctx.lineTo(-7.5, 3.8);
+    ctx.lineTo(-8.5, 1.2);
+    ctx.lineTo(-1.8, -3);
+    ctx.lineTo(-3.8, -4.5);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+
+  if (labelNum !== null) {
+    const bx = 7.5 * scale, by = -7.5 * scale;
+    ctx.fillStyle = PAL.ink;
+    ctx.beginPath();
+    ctx.arc(bx, by, 6.4 * scale, 0, Math.PI * 2);
+    ctx.fill();
+    text(String(labelNum), bx, by + 0.5, Math.max(11, Math.round(9.5 * scale)), PAL.white, 'center', '700');
+  }
+  ctx.restore();
+}
+
+function drawWoodenDie(cx, cy, size, val, spinPhase = 0) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  if (spinPhase > 0) ctx.rotate(Math.sin(spinPhase * 28) * 0.24);
+  const half = size / 2;
+  if (!CHEAP) {
+    ctx.fillStyle = PAL.shadow;
+    roundRectPath(-half + 2, -half + 6, size, size, size * 0.2);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#D9C8AE';
+  roundRectPath(-half, -half + 4, size, size, size * 0.2);
+  ctx.fill();
+  ctx.fillStyle = PAL.ivory;
+  roundRectPath(-half, -half, size, size, size * 0.2);
+  ctx.fill();
+  ctx.strokeStyle = PAL.ink;
+  ctx.lineWidth = Math.max(2, size * 0.045);
+  ctx.stroke();
+
+  const pips = {
+    1: [[0, 0]],
+    2: [[-0.27, -0.27], [0.27, 0.27]],
+    3: [[-0.27, -0.27], [0, 0], [0.27, 0.27]],
+    4: [[-0.27, -0.27], [0.27, -0.27], [-0.27, 0.27], [0.27, 0.27]],
+    5: [[-0.27, -0.27], [0.27, -0.27], [0, 0], [-0.27, 0.27], [0.27, 0.27]],
+    6: [[-0.27, -0.28], [0.27, -0.28], [-0.27, 0], [0.27, 0], [-0.27, 0.28], [0.27, 0.28]],
+  };
+  const list = pips[val] || pips[1];
+  list.forEach(([ox, oy]) => {
+    ctx.fillStyle = val === 6 || val === 1 ? FACTIONS[0].color : PAL.ink;
+    ctx.beginPath();
+    ctx.arc(ox * size, oy * size, size * (val === 1 ? 0.13 : 0.088), 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.restore();
+}
+
+function drawReactionIcon(cx, cy, r, kind, color) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 2.4;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  if (kind === 'urge') {
+    // Bell / Gavel clock chime icon
+    ctx.beginPath();
+    ctx.arc(0, 2, r * 0.56, Math.PI, 0);
+    ctx.lineTo(r * 0.68, r * 0.45);
+    ctx.lineTo(-r * 0.68, r * 0.45);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, r * 0.65, r * 0.14, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (kind === 'cheer') {
+    // Starburst pennant / trophy star
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const ang = (i * Math.PI) / 5 - Math.PI / 2;
+      const rad = i % 2 === 0 ? r * 0.72 : r * 0.34;
+      const px = Math.cos(ang) * rad;
+      const py = Math.sin(ang) * rad;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  } else {
+    // Lightning shock bolt
+    ctx.beginPath();
+    ctx.moveTo(r * 0.15, -r * 0.75);
+    ctx.lineTo(-r * 0.38, r * 0.08);
+    ctx.lineTo(r * 0.06, r * 0.08);
+    ctx.lineTo(-r * 0.18, r * 0.75);
+    ctx.lineTo(r * 0.42, -r * 0.1);
+    ctx.lineTo(-r * 0.02, -r * 0.1);
+    ctx.closePath();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawTileSample(cx, cy) {
+  const s = 54;
+  FACTIONS.forEach((f, i) => {
+    const tx = cx - 96 + i * 64;
+    ctx.fillStyle = f.light;
+    roundRectPath(tx - s / 2, cy - s / 2, s, s, 8);
+    ctx.fill();
+    ctx.strokeStyle = f.color;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    drawDualShapeBadge(tx, cy, 13, f);
+  });
+  ctx.save();
+  ctx.setLineDash([6, 5]);
+  ctx.strokeStyle = FACTIONS[0].color;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(cx - 96, cy - 38);
+  ctx.quadraticCurveTo(cx, cy - 66, cx + 96, cy - 38);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ---- Board Rendering (15x15 Chinese Aeroplane Chess) -----------------------------------
+function drawBoard(bx, by, bs) {
+  let sx = 0, sy = 0;
+  if (state.shakeT > 0) {
+    sx = Math.sin(state.t * 58) * state.shakeAmp * (state.shakeT / 0.25);
+    sy = Math.cos(state.t * 47) * state.shakeAmp * (state.shakeT / 0.25);
+  }
+  const ox = bx + sx;
+  const oy = by + sy;
+  const cs = bs / 15;
+
+  drawCard(ox - 8, oy - 8, bs + 16, bs + 16, PAL.ivory, PAL.ink, 5, 16);
+
+  // Draw 4 Hangar Quadrants
+  const hangars = [
+    { p: 0, x: 0, y: 0 },
+    { p: 1, x: 10.2, y: 0 },
+    { p: 2, x: 10.2, y: 10.2 },
+    { p: 3, x: 0, y: 10.2 },
+  ];
+  hangars.forEach(h => {
+    const f = FACTIONS[h.p];
+    const hx = ox + h.x * cs;
+    const hy = oy + h.y * cs;
+    const hw = 4.8 * cs;
+    ctx.fillStyle = f.light;
+    roundRectPath(hx + 2, hy + 2, hw - 4, hw - 4, 12);
+    ctx.fill();
+    ctx.strokeStyle = f.color;
+    ctx.lineWidth = 2.2;
+    ctx.stroke();
+
+    // 4 Hangar pads (show active count based on planeCount)
+    for (let sIdx = 0; sIdx < state.planeCount; sIdx++) {
+      const [gx, gy] = HANGAR_SLOTS[h.p][sIdx];
+      const px = ox + gx * cs;
+      const py = oy + gy * cs;
+      ctx.fillStyle = PAL.ivory;
+      ctx.beginPath();
+      ctx.arc(px, py, cs * 0.62, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = f.color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  });
+
+  // Draw Ready Pads (progress === 0)
+  READY_CELLS.forEach(([gx, gy], p) => {
+    const f = FACTIONS[p];
+    const px = ox + gx * cs;
+    const py = oy + gy * cs;
+    ctx.fillStyle = f.light;
+    ctx.beginPath();
+    ctx.arc(px, py, cs * 0.46, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = f.color;
+    ctx.lineWidth = 2.2;
+    ctx.stroke();
+    drawDualShapeBadge(px, py, cs * 0.18, f);
+  });
+
+  // Draw 52 Outer Track Tiles with dual-channel symbol badges
+  OUTER_TRACK.forEach(([col, row], idx) => {
+    const f = FACTIONS[tileColor(idx)];
+    const tx = ox + col * cs + 1.5;
+    const ty = oy + row * cs + 1.5;
+    const ts = cs - 3;
+    ctx.fillStyle = f.light;
+    roundRectPath(tx, ty, ts, ts, 5);
+    ctx.fill();
+    ctx.strokeStyle = f.color;
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    drawDualShapeBadge(tx + ts / 2, ty + ts / 2, cs * 0.16, f);
+  });
+
+  // Draw Dotted Flight Shortcuts (progress 20 -> 32)
+  [0, 1, 2, 3].forEach(p => {
+    const f = FACTIONS[p];
+    const from = getPlaneGridPos(p, 0, 20);
+    const to = getPlaneGridPos(p, 0, 32);
+    ctx.save();
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = f.color;
+    ctx.lineWidth = 2.6;
+    ctx.beginPath();
+    ctx.moveTo(ox + from[0] * cs, oy + from[1] * cs);
+    ctx.lineTo(ox + to[0] * cs, oy + to[1] * cs);
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  // Draw 4 Private Home Stretches (5 cells each)
+  HOME_STRETCH.forEach((cells, p) => {
+    const f = FACTIONS[p];
+    cells.forEach(([col, row]) => {
+      const tx = ox + col * cs + 2;
+      const ty = oy + row * cs + 2;
+      const ts = cs - 4;
+      ctx.fillStyle = f.color;
+      roundRectPath(tx, ty, ts, ts, 5);
+      ctx.fill();
+      ctx.strokeStyle = PAL.ink;
+      ctx.lineWidth = 1.3;
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.beginPath();
+      ctx.arc(tx + ts / 2, ty + ts / 2, cs * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  });
+
+  // Draw Center Finish Wedges (6..9, 6..9)
+  const cx = ox + 7.5 * cs;
+  const cy = oy + 7.5 * cs;
+  const x0 = ox + 6 * cs, x1 = ox + 9 * cs;
+  const y0 = oy + 6 * cs, y1 = oy + 9 * cs;
+  const wedges = [
+    [[x0, y0], [cx, cy], [x0, y1]], // Red left
+    [[x0, y0], [x1, y0], [cx, cy]], // Yellow top
+    [[x1, y0], [x1, y1], [cx, cy]], // Blue right
+    [[x0, y1], [cx, cy], [x1, y1]], // Green bottom
+  ];
+  wedges.forEach((pts, p) => {
+    ctx.fillStyle = FACTIONS[p].light;
+    ctx.strokeStyle = PAL.ink;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    ctx.lineTo(pts[1][0], pts[1][1]);
+    ctx.lineTo(pts[2][0], pts[2][1]);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  });
+
+  // Draw Landing Preview Trajectory for Selected Move in await_pick
+  if (state.phase === 'await_pick' && state.legalMoves.length > 0) {
+    const m = state.legalMoves[state.selectedMoveIdx];
+    const p = state.currentTurn;
+    const pts = m.waypoints.map(w => getPlaneGridPos(p, m.planeIdx, w));
+    ctx.save();
+    ctx.strokeStyle = PAL.ink;
+    ctx.lineWidth = 4;
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath();
+    pts.forEach((pt, idx) => {
+      const px = ox + pt[0] * cs;
+      const py = oy + pt[1] * cs;
+      if (idx === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+    ctx.restore();
+
+    const endPt = pts[pts.length - 1];
+    const ex = ox + endPt[0] * cs;
+    const ey = oy + endPt[1] * cs;
+    const pulse = 1 + Math.sin(state.t * 7) * 0.12;
+    ctx.strokeStyle = m.knockouts.length > 0 ? FACTIONS[0].color : PAL.ink;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(ex, ey, cs * 0.44 * pulse, 0, Math.PI * 2);
+    ctx.stroke();
+    if (m.knockouts.length > 0) {
+      ctx.fillStyle = FACTIONS[0].color;
+      roundRectPath(ex - 26, ey - cs * 0.85, 52, 22, 6);
+      ctx.fill();
+      text('撞飞', ex, ey - cs * 0.85 + 11, PORTRAIT ? 12 : 14, PAL.white, 'center', '700');
+    }
+  }
+
+  // Group Stationary Planes to Handle Stacking Badges cleanly (no fan-out clutter)
+  const cellGroups = new Map();
+  const planeScale = Math.max(0.76, (cs / 42.67) * 0.96);
+  const animRef = state.anim;
+
+  for (let p = 0; p < 4; p++) {
+    if (seatTypes[p] === 'off') continue;
+    for (let i = 0; i < state.planeCount; i++) {
+      if (animRef && animRef.player === p && animRef.move.planeIdx === i) continue;
+      const prog = state.planes[p][i].progress;
+      const pos = getPlaneGridPos(p, i, prog);
+      const key = prog < 0 || prog >= 58 ? `unique-${p}-${i}` : `${p}-${prog}`;
+      if (!cellGroups.has(key)) cellGroups.set(key, { p, prog, pos, indices: [] });
+      cellGroups.get(key).indices.push(i);
+    }
+  }
+
+  cellGroups.forEach(group => {
+    const p = group.p;
+    const f = FACTIONS[p];
+    const gx = ox + group.pos[0] * cs;
+    const gy = oy + group.pos[1] * cs;
+    let legalIdx = -1;
+    let isSelected = false;
+    if (state.phase === 'await_pick' && p === state.currentTurn && seatTypes[p] === 'human') {
+      group.indices.forEach(idx => {
+        const mIdx = state.legalMoves.findIndex(m => m.planeIdx === idx);
+        if (mIdx >= 0 && legalIdx < 0) legalIdx = mIdx;
+        if (mIdx === state.selectedMoveIdx) isSelected = true;
+      });
+    }
+    const repIdx = isSelected ? state.legalMoves[state.selectedMoveIdx].planeIdx : group.indices[0];
+    const heading = getHeadingForProgress(p, group.prog);
+    const lifted = legalIdx >= 0;
+    drawAircraft(gx, gy, planeScale * (isSelected ? 1.12 : 1), heading, f, lifted, isSelected ? 3 : 0, repIdx + 1);
+
+    if (group.indices.length > 1) {
+      const bx = gx + 10 * planeScale;
+      const by = gy + 8 * planeScale;
+      ctx.fillStyle = PAL.ivory;
+      roundRectPath(bx - 14, by - 10, 28, 20, 6);
+      ctx.fill();
+      ctx.strokeStyle = PAL.ink;
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+      text(`x${group.indices.length}`, bx, by, PORTRAIT ? 12 : 14, PAL.ink, 'center', '700');
+    }
+
+    if (legalIdx >= 0) {
+      const hitR = Math.max(22, cs * 0.56);
+      addHitBox(gx - hitR, gy - hitR, hitR * 2, hitR * 2, () => {
+        if (state.selectedMoveIdx === legalIdx && state.pickDebounce <= 0) {
+          commitMove(state.legalMoves[legalIdx]);
+        } else {
+          state.selectedMoveIdx = legalIdx;
+          playSfx('select');
+        }
+      });
+    }
+  });
+
+  // Draw In-Flight Animated Plane on Top
+  if (animRef) {
+    const f = FACTIONS[animRef.player];
+    const ax = ox + animRef.pos[0] * cs;
+    const ay = oy + animRef.pos[1] * cs;
+    drawAircraft(ax, ay, planeScale * 1.14, animRef.heading, f, true, animRef.arcLift, animRef.move.planeIdx + 1);
+  }
+}
+
+// ---- Title Screen Drawers ---------------------------------------------------------------
+function drawTitleDesktop() {
+  drawCard(130, 32, 1020, 656, PAL.ivory, PAL.ink, 6, 18);
+  text(TITLE, W / 2, 76, 36, PAL.ink, 'center', '700');
+  text(SUBTITLE, W / 2, 114, 16, PAL.inkMuted, 'center', '600');
+
+  // Section 1: 4 Seats
+  text('1. 选择对局席位（点击切换 人类 / AI / 关闭，至少 2 方）', 640, 162, 17, PAL.ink, 'center', '700');
+  FACTIONS.forEach((f, i) => {
+    const sx = 176 + i * 236;
+    const sy = 190;
+    const mode = seatTypes[i];
+    const active = mode !== 'off';
+    const bg = active ? f.light : '#ECE6DC';
+    drawCard(sx, sy, 220, 128, bg, PAL.ink, 4, 12);
+    if (active) drawAircraft(sx + 56, sy + 56, 1.45, -Math.PI * 0.5, f, false, 0);
+    else drawDualShapeBadge(sx + 56, sy + 56, 14, f);
+    text(f.name, sx + 148, sy + 36, 18, PAL.ink, 'center', '700');
+    const modeLabel = mode === 'human' ? '人类玩家' : (mode === 'bot' ? f.botName : '已关闭');
+    drawCard(sx + 92, sy + 64, 114, 38, mode === 'human' ? f.color : PAL.ivory, PAL.ink, 2, 8);
+    text(modeLabel, sx + 149, sy + 83, 15, mode === 'human' && f.id !== 1 ? PAL.white : PAL.ink, 'center', '700');
+
+    addHitBox(sx, sy, 220, 128, () => {
+      const order = ['human', 'bot', 'off'];
+      let next = order[(order.indexOf(seatTypes[i]) + 1) % order.length];
+      if (next === 'off' && activeSeats().length <= 2) next = 'human';
+      seatTypes[i] = next;
+      playSfx('select');
+    });
+  });
+
+  // Section 2: Match Pace Presets
+  text('2. 单局飞机数量与节奏预设', 392, 356, 17, PAL.ink, 'center', '700');
+  const presets = [
+    { count: 2, label: '闪电 2架' },
+    { count: 3, label: '极速 3架(推荐)' },
+    { count: 4, label: '标准 4架' },
+  ];
+  presets.forEach((pr, idx) => {
+    const bx = 176 + idx * 148;
+    const selected = Math.round(tune.planes_per_player) === pr.count;
+    drawButton(bx, 380, 140, 56, pr.label, selected ? FACTIONS[2].color : PAL.cardWarm, selected ? PAL.white : PAL.ink, 15, () => setPreset(pr.count), selected);
+  });
+
+  // Section 3: House-Rule Toggles
+  text('3. 熟人村规自由开关', 888, 356, 17, PAL.ink, 'center', '700');
+  const rules = [
+    { key: 'launch_on_five_or_six', label: '5/6起飞' },
+    { key: 'triple_six_penalty', label: '三连6回巢' },
+    { key: 'start_with_one_ready', label: '首机预备' },
+  ];
+  rules.forEach((rl, idx) => {
+    const rx = 674 + idx * 148;
+    const on = CONFIG[rl.key].value >= 1;
+    drawButton(rx, 380, 140, 56, `${rl.label}:${on ? '开' : '关'}`, on ? FACTIONS[3].color : PAL.cardWarm, on ? PAL.white : PAL.ink, 15, () => {
+      CONFIG[rl.key].value = on ? 0 : 1;
+    }, on);
+  });
+
+  // Controls guide & CTA
+  drawCard(176, 466, 928, 102, PAL.cardWarm, PAL.ink, 2, 12);
+  text(`${CONTROLS[0]}   |   ${CONTROLS[1]}`, W / 2, 498, 16, PAL.ink, 'center', '600');
+  text(`${CONTROLS[2]}   |   ${CONTROLS[3]}`, W / 2, 536, 16, PAL.inkMuted, 'center', '600');
+
+  drawButton(470, 592, 340, 68, '开始对局（Enter / Space）', FACTIONS[0].color, PAL.white, 22, () => {
+    reset();
+    scene = 'play';
+  });
+}
+
+function drawTitlePortrait() {
+  drawCard(12, 12, 351, H - 24, PAL.ivory, PAL.ink, 5, 14);
+  text(TITLE, W / 2, 46, 20, PAL.ink, 'center', '700');
+  text('10-15分钟极速飞行棋 · 免登录局', W / 2, 72, 13, PAL.inkMuted, 'center', '600');
+
+  FACTIONS.forEach((f, i) => {
+    const sx = 24 + (i % 2) * 168;
+    const sy = 96 + Math.floor(i / 2) * 76;
+    const mode = seatTypes[i];
+    const modeLabel = mode === 'human' ? '人类' : (mode === 'bot' ? 'AI' : '关闭');
+    drawButton(sx, sy, 158, 66, `${f.name}: ${modeLabel}`, mode !== 'off' ? f.light : '#ECE6DC', PAL.ink, 14, () => {
+      const order = ['human', 'bot', 'off'];
+      let next = order[(order.indexOf(seatTypes[i]) + 1) % order.length];
+      if (next === 'off' && activeSeats().length <= 2) next = 'human';
+      seatTypes[i] = next;
+    });
+  });
+
+  [2, 3, 4].forEach((cnt, idx) => {
+    const selected = Math.round(tune.planes_per_player) === cnt;
+    drawButton(24 + idx * 112, 260, 104, 48, `${cnt}架飞机`, selected ? FACTIONS[2].color : PAL.cardWarm, selected ? PAL.white : PAL.ink, 14, () => setPreset(cnt), selected);
+  });
+
+  const rules = [
+    { key: 'launch_on_five_or_six', label: '5/6起飞' },
+    { key: 'triple_six_penalty', label: '三连6回巢' },
+    { key: 'start_with_one_ready', label: '首机预备' },
+  ];
+  rules.forEach((rl, idx) => {
+    const on = CONFIG[rl.key].value >= 1;
+    drawButton(24 + idx * 112, 320, 104, 52, `${rl.label}:${on ? '开' : '关'}`, on ? FACTIONS[3].color : PAL.cardWarm, on ? PAL.white : PAL.ink, 12, () => {
+      CONFIG[rl.key].value = on ? 0 : 1;
+    }, on);
+  });
+
+  drawCard(24, 386, 327, 66, PAL.cardWarm, PAL.ink, 2, 10);
+  text('点击棋子预览落点 · 再次点击确认走子', W / 2, 419, 13, PAL.inkMuted, 'center', '600');
+
+  drawButton(24, H - 84, 327, 58, '开始对局（Enter）', FACTIONS[0].color, PAL.white, 18, () => {
+    reset();
+    scene = 'play';
+  });
+}
+
+// ---- Play Screen Drawers ----------------------------------------------------------------
+function drawPlayDesktop() {
+  drawBoard(320, 40, 640);
+
+  // Left Panel: Factions & Session Scoreboard + Active House Rules
+  drawCard(20, 32, 276, 492, PAL.ivory, PAL.ink, 4, 14);
+  text('对局席位', 40, 56, 17, PAL.ink, 'left', '700');
+  text(`第 ${sessionMatches + 1} 局 · 第 ${state.turnCount} 手`, 278, 56, 15, PAL.inkMuted, 'right', '600');
+
+  FACTIONS.forEach((f, i) => {
+    const cy = 78 + i * 108;
+    const isOff = seatTypes[i] === 'off';
+    const isTurn = state.currentTurn === i;
+    const bg = isOff ? '#ECE6DC' : (isTurn ? f.light : PAL.cardWarm);
+    if (isTurn) {
+      const pulse = 1 + Math.sin(state.t * 5) * 0.015;
+      ctx.strokeStyle = PAL.white;
+      ctx.lineWidth = 6;
+      roundRectPath(30, cy - 2, 256 * pulse, 100, 12);
+      ctx.stroke();
+    }
+    drawCard(32, cy, 252, 96, bg, PAL.ink, isTurn ? 5 : 2, 10);
+    drawAircraft(64, cy + 48, 1.18, -Math.PI * 0.5, f, isTurn, 0);
+
+    const roleStr = isOff ? '空置' : (seatTypes[i] === 'bot' ? f.botName : `${f.name} (人类)`);
+    text(roleStr, 102, cy + 26, 16, PAL.ink, 'left', '700');
+    if (!isOff) {
+      const done = state.planes[i].filter(pl => pl.progress === 58).length;
+      const statusText = state.autoPilot[i] ? '托管中(点接管)' : `入终 ${done}/${state.planeCount}`;
+      text(statusText, 102, cy + 52, 15, state.autoPilot[i] ? FACTIONS[0].color : PAL.inkMuted, 'left', '600');
+      text(`胜场: ${sessionWins[i]}`, 102, cy + 76, 15, PAL.ink, 'left', '600');
+    }
+
+    if (state.reaction && state.reaction.player === i) {
+      drawCard(198, cy + 4, 118, 40, PAL.ivory, PAL.ink, 3, 10);
+      drawReactionIcon(216, cy + 24, 11, state.reaction.kind, f.color);
+      text(state.reaction.label, 232, cy + 24, 14, PAL.ink, 'left', '700');
+    }
+  });
+
+  // House Rule Corner Badges Card
+  drawCard(20, 536, 276, 152, PAL.ivory, PAL.ink, 4, 14);
+  text('生效村规', 40, 562, 16, PAL.ink, 'left', '700');
+  drawButton(196, 544, 86, 34, '详情(H)', PAL.cardWarm, PAL.ink, 14, () => { state.showRulesDrawer = !state.showRulesDrawer; });
+
+  const badges = [
+    { txt: tune.launch_on_five_or_six >= 1 ? '5/6起飞' : '仅6起飞', mod: tune.launch_on_five_or_six >= 1 },
+    { txt: tune.triple_six_penalty >= 1 ? '三连6回巢' : '无连6罚', mod: tune.triple_six_penalty >= 1 },
+    { txt: tune.start_with_one_ready >= 1 ? '首机预备' : '全员入库', mod: tune.start_with_one_ready >= 1 },
+    { txt: `极速 ${state.planeCount} 架`, mod: state.planeCount !== 4 },
+  ];
+  badges.forEach((b, idx) => {
+    const bx = 34 + (idx % 2) * 128;
+    const by = 588 + Math.floor(idx / 2) * 44;
+    drawCard(bx, by, 120, 36, b.mod ? FACTIONS[1].light : PAL.cardWarm, PAL.ink, 2, 8);
+    text(b.txt, bx + 60, by + 18, 15, PAL.ink, 'center', '700');
+  });
+
+  // Right Panel: Turn Info, Mutually-Exclusive Action Slot, Reaction Triggers
+  drawCard(984, 32, 276, 132, PAL.ivory, PAL.ink, 4, 14);
+  drawButton(998, 44, 80, 34, muted ? '静音(M)' : '音效(M)', PAL.cardWarm, PAL.ink, 14, () => setMuted(!muted));
+  drawButton(1084, 44, 80, 34, '规则(H)', PAL.cardWarm, PAL.ink, 14, () => { state.showRulesDrawer = !state.showRulesDrawer; });
+  drawButton(1170, 44, 76, 34, '重设', PAL.cardWarm, PAL.ink, 14, () => { scene = 'title'; });
+
+  const cp = state.currentTurn;
+  const cpLabel = seatTypes[cp] === 'bot' ? `${FACTIONS[cp].botName} 思考中` : `轮到 ${FACTIONS[cp].name}`;
+  text(cpLabel, 1002, 104, 18, PAL.ink, 'left', '700');
+  if (state.consecutiveSixes > 0) {
+    drawCard(1182, 88, 64, 32, FACTIONS[0].light, FACTIONS[0].color, 2, 8);
+    text(`连6x${state.consecutiveSixes}`, 1214, 104, 14, FACTIONS[0].color, 'center', '700');
+  }
+  const timerStr = seatTypes[cp] === 'bot' ? 'AI 自动决策中...' : (state.turnTimer <= 10 ? `即将超时: ${Math.ceil(state.turnTimer)}s` : `操作倒计时: ${Math.ceil(state.turnTimer)}s`);
+  text(timerStr, 1002, 138, 15, state.turnTimer <= 10 && seatTypes[cp] === 'human' ? FACTIONS[0].color : PAL.inkMuted, 'left', '600');
+
+  // Sub-card 2: Mutually-Exclusive Roll / Quick-Pick Slot
+  drawCard(984, 176, 276, 384, PAL.ivory, PAL.ink, 4, 14);
+  if (state.phase === 'await_roll' || state.phase === 'rolling') {
+    drawWoodenDie(1122, 286, 112, state.roll, state.phase === 'rolling' ? state.t : 0);
+    text(state.phase === 'rolling' ? '木骰滚动中...' : '点击按钮或按 Space 掷骰', 1122, 378, 15, PAL.inkMuted, 'center', '600');
+    if (seatTypes[cp] === 'human' && state.phase === 'await_roll') {
+      drawButton(1004, 412, 236, 66, '掷骰子 (Space)', FACTIONS[cp].id === 1 ? FACTIONS[1].fillBright : FACTIONS[cp].color, FACTIONS[cp].id === 1 ? PAL.ink : PAL.white, 20, beginRoll);
+      text('Enter / Space 均可掷骰', 1122, 510, 15, PAL.inkMuted, 'center', '600');
+    } else {
+      drawCard(1004, 412, 236, 66, PAL.cardWarm, PAL.ink, 2, 10);
+      text('等待掷骰结果...', 1122, 445, 17, PAL.inkMuted, 'center', '700');
+    }
+  } else if (state.phase === 'await_pick') {
+    drawWoodenDie(1036, 214, 46, state.roll, 0);
+    text(`掷出 ${state.roll} 点 · 选择要走的飞机`, 1070, 214, 16, PAL.ink, 'left', '700');
+
+    state.legalMoves.forEach((m, idx) => {
+      const my = 250 + idx * 58;
+      const sel = idx === state.selectedMoveIdx;
+      const f = FACTIONS[cp];
+      drawCard(1000, my, 244, 52, sel ? f.light : PAL.cardWarm, PAL.ink, sel ? 4 : 2, 10);
+      text(`#${m.planeIdx + 1}`, 1024, my + 26, 16, PAL.ink, 'center', '700');
+      text(describeProgress(m.fromProg), 1050, my + 26, 15, PAL.inkMuted, 'left', '600');
+      const tagColor = m.knockouts.length > 0 ? FACTIONS[0].color : FACTIONS[2].color;
+      text(m.tag, 1230, my + 26, 15, tagColor, 'right', '700');
+      addHitBox(1000, my, 244, 52, () => {
+        if (state.selectedMoveIdx === idx && state.pickDebounce <= 0) commitMove(m);
+        else { state.selectedMoveIdx = idx; playSfx('select'); }
+      });
+    });
+
+    const selected = state.legalMoves[state.selectedMoveIdx];
+    drawButton(1000, 488, 244, 56, `确认走 #${selected.planeIdx + 1} (Space)`, FACTIONS[3].color, PAL.white, 17, () => {
+      if (state.pickDebounce <= 0) commitMove(state.legalMoves[state.selectedMoveIdx]);
+    });
+  } else {
+    drawWoodenDie(1122, 270, 88, state.roll, 0);
+    const mv = state.anim ? state.anim.move : null;
+    const msg = mv && mv.knockouts.length > 0 ? '精准撞飞对手!' : (mv && mv.events.includes('shortcut') ? '虚线飞跃 +12!' : (mv && mv.events.includes('jump') ? '同色连跳 +4!' : '飞机飞驰中...'));
+    text(msg, 1122, 376, 19, PAL.ink, 'center', '700');
+    text('单步 <= 0.8s 实体反馈', 1122, 412, 15, PAL.inkMuted, 'center', '600');
+  }
+
+  // Sub-card 3: Tabletop Reaction Triggers
+  drawCard(984, 572, 276, 116, PAL.ivory, PAL.ink, 4, 14);
+  text('桌面表情互动 (Q / W / E)', 1122, 594, 15, PAL.ink, 'center', '700');
+  const reacts = [
+    { kind: 'urge', label: '催促(Q)', color: PAL.ink },
+    { kind: 'cheer', label: '喝彩(W)', color: FACTIONS[0].color },
+    { kind: 'shock', label: '惊呼(E)', color: FACTIONS[2].color },
+  ];
+  reacts.forEach((rc, idx) => {
+    const rx = 998 + idx * 84;
+    drawCard(rx, 612, 78, 62, PAL.cardWarm, PAL.ink, 2, 10);
+    drawReactionIcon(rx + 39, 632, 14, rc.kind, rc.color);
+    text(rc.label, rx + 39, 659, 14, PAL.ink, 'center', '700');
+    addHitBox(rx, 612, 78, 62, () => showReaction(0, rc.kind));
+  });
+}
+
+function drawPlayPortrait() {
+  // Strictly fits 375x540px+ dvh with zero scrollbars
+  FACTIONS.forEach((f, i) => {
+    const x = 8 + i * 74;
+    const isTurn = state.currentTurn === i;
+    const bg = seatTypes[i] === 'off' ? '#ECE6DC' : (isTurn ? f.light : PAL.ivory);
+    drawCard(x, 6, 70, 46, bg, PAL.ink, isTurn ? 3 : 1, 8);
+    drawDualShapeBadge(x + 15, 22, 7, f);
+    const done = state.planes[i].filter(pl => pl.progress === 58).length;
+    text(seatTypes[i] === 'off' ? '关' : f.name.slice(0, 1), x + 36, 22, 12, PAL.ink, 'center', '700');
+    text(seatTypes[i] === 'off' ? '-' : `${done}/${state.planeCount}`, x + 35, 40, 11, PAL.inkMuted, 'center', '600');
+  });
+  drawButton(306, 6, 61, 22, muted ? '静音' : '声音', PAL.ivory, PAL.ink, 11, () => setMuted(!muted));
+  drawButton(306, 31, 61, 22, '村规', PAL.ivory, PAL.ink, 11, () => { state.showRulesDrawer = !state.showRulesDrawer; });
+
+  // Compact active rule summary line (y = 56..72)
+  const rTxt = `村规: ${tune.launch_on_five_or_six >= 1 ? '5/6起飞' : '仅6起飞'} · ${tune.triple_six_penalty >= 1 ? '三连6回巢' : '无连6罚'} · ${state.planeCount}架`;
+  text(rTxt, W / 2, 64, 11, PAL.inkMuted, 'center', '600');
+
+  // Square board (351x351 at y = 78..429)
+  const bs = 348;
+  drawBoard((W - bs) / 2, 78, bs);
+
+  // Bottom mutually-exclusive slot (y = 436..H-8, minimum height >= 96 inside 540px)
+  const slotY = 438;
+  const slotH = Math.max(92, H - slotY - 8);
+  const cp = state.currentTurn;
+  drawCard(10, slotY, W - 20, slotH, PAL.ivory, PAL.ink, 3, 12);
+  if (state.phase === 'await_roll' || state.phase === 'rolling') {
+    drawWoodenDie(54, slotY + slotH / 2, 54, state.roll, state.phase === 'rolling' ? state.t : 0);
+    if (seatTypes[cp] === 'human' && state.phase === 'await_roll') {
+      drawButton(96, slotY + 14, 162, slotH - 28, '掷骰子', FACTIONS[cp].id === 1 ? FACTIONS[1].fillBright : FACTIONS[cp].color, FACTIONS[cp].id === 1 ? PAL.ink : PAL.white, 16, beginRoll);
+    } else {
+      text(`${FACTIONS[cp].botName} 掷骰中...`, 178, slotY + slotH / 2, 13, PAL.inkMuted, 'center', '700');
+    }
+    ['urge', 'cheer', 'shock'].forEach((k, i) => {
+      const rx = 266 + i * 33;
+      drawCard(rx, slotY + 18, 30, slotH - 36, PAL.cardWarm, PAL.ink, 2, 7);
+      drawReactionIcon(rx + 15, slotY + slotH / 2, 9, k, PAL.ink);
+      addHitBox(rx, slotY + 18, 30, slotH - 36, () => showReaction(0, k));
+    });
+  } else if (state.phase === 'await_pick') {
+    const cnt = state.legalMoves.length;
+    const cardW = Math.min(62, Math.floor(214 / Math.max(1, cnt)));
+    state.legalMoves.forEach((m, idx) => {
+      const mx = 18 + idx * (cardW + 4);
+      const sel = idx === state.selectedMoveIdx;
+      drawCard(mx, slotY + 12, cardW, slotH - 24, sel ? FACTIONS[cp].light : PAL.cardWarm, PAL.ink, sel ? 3 : 1, 8);
+      text(`#${m.planeIdx + 1}`, mx + cardW / 2, slotY + 30, 14, PAL.ink, 'center', '700');
+      text(m.tag, mx + cardW / 2, slotY + 54, 11, FACTIONS[0].color, 'center', '700');
+      addHitBox(mx, slotY + 12, cardW, slotH - 24, () => {
+        if (state.selectedMoveIdx === idx && state.pickDebounce <= 0) commitMove(m);
+        else { state.selectedMoveIdx = idx; playSfx('select'); }
+      });
+    });
+    const selMove = state.legalMoves[state.selectedMoveIdx];
+    drawButton(242, slotY + 12, 112, slotH - 24, `走 #${selMove.planeIdx + 1}`, FACTIONS[3].color, PAL.white, 15, () => {
+      if (state.pickDebounce <= 0) commitMove(selMove);
+    });
+  } else {
+    text('飞机飞驰中...', W / 2, slotY + slotH / 2, 16, PAL.ink, 'center', '700');
+  }
+}
+
+function drawToastBanner() {
+  const bw = PORTRAIT ? 344 : 580;
+  const bx = (W - bw) / 2;
+  const by = PORTRAIT ? 74 : 12;
+  drawCard(bx, by, bw, 44, PAL.ink, PAL.white, 3, 10);
+  text(state.toast.text, W / 2, by + 22, PORTRAIT ? 12 : 16, PAL.white, 'center', '700');
+  addHitBox(bx, by, bw, 44, () => { state.toast = null; });
+}
+
+function drawRulesModal() {
+  ctx.fillStyle = 'rgba(46,38,32,0.45)';
+  ctx.fillRect(0, 0, W, H);
+  const mw = PORTRAIT ? 340 : 540;
+  const mh = PORTRAIT ? 320 : 340;
+  const mx = (W - mw) / 2;
+  const my = (H - mh) / 2;
+  drawCard(mx, my, mw, mh, PAL.ivory, PAL.ink, 5, 16);
+  text('本桌生效规则说明', W / 2, my + 34, PORTRAIT ? 18 : 22, PAL.ink, 'center', '700');
+  const lines = [
+    `1. 飞机数量：每方 ${state.planeCount} 架（全部飞入中心终点获胜）`,
+    `2. 起飞条件：${tune.launch_on_five_or_six >= 1 ? '掷出 5 或 6 点可起飞' : '仅掷出 6 点可起飞'}`,
+    `3. 连6规则：${tune.triple_six_penalty >= 1 ? '连续三个 6 最前外圈机返航' : '无三连 6 惩罚'}`,
+    '4. 中式连跳：落入同色格自动向前连跳 4 格',
+    '5. 虚线飞跃：到达专属虚线起点直飞 12 格并撞击横穿路径敌机',
+  ];
+  lines.forEach((ln, i) => text(ln, mx + 24, my + 82 + i * 38, PORTRAIT ? 12 : 16, PAL.ink, 'left', '600'));
+  drawButton(W / 2 - 80, my + mh - 62, 160, 44, '关闭 (H)', FACTIONS[2].color, PAL.white, 16, () => { state.showRulesDrawer = false; });
+}
+
+function drawResultsScreen() {
+  const mw = PORTRAIT ? 348 : 760;
+  const mh = PORTRAIT ? 496 : 560;
+  const mx = (W - mw) / 2;
+  const my = (H - mh) / 2;
+  const wf = FACTIONS[Math.max(0, state.winner)];
+  drawCard(mx, my, mw, mh, PAL.ivory, PAL.ink, 6, 18);
+  drawAircraft(W / 2, my + 74, PORTRAIT ? 2.0 : 2.6, -Math.PI * 0.5, wf, true, 0);
+  text(state.gained || '对局结束', W / 2, my + 138, PORTRAIT ? 18 : 28, PAL.ink, 'center', '700');
+  text(`总手数 ${state.turnCount} 手 · 本桌已完赛 ${sessionMatches} 局`, W / 2, my + 174, PORTRAIT ? 13 : 16, PAL.inkMuted, 'center', '600');
+
+  // Funny Match Awards
+  const awY = my + 206;
+  const awW = PORTRAIT ? (mw - 32) : 220;
+  state.awards.forEach((aw, i) => {
+    const ax = PORTRAIT ? mx + 16 : mx + 32 + i * 238;
+    const ay = PORTRAIT ? awY + i * 56 : awY;
+    const ah = PORTRAIT ? 48 : 110;
+    drawCard(ax, ay, awW, ah, PAL.cardWarm, PAL.ink, 2, 10);
+    if (PORTRAIT) {
+      text(`${aw.title}: ${aw.holder} (${aw.detail})`, ax + 14, ay + 24, 12, PAL.ink, 'left', '700');
+    } else {
+      text(aw.title, ax + 110, ay + 28, 17, FACTIONS[0].color, 'center', '700');
+      text(aw.holder, ax + 110, ay + 58, 17, PAL.ink, 'center', '700');
+      text(aw.detail, ax + 110, ay + 86, 14, PAL.inkMuted, 'center', '600');
+    }
+  });
+
+  // Session Scoreboard
+  const sbY = PORTRAIT ? my + 382 : my + 344;
+  drawCard(mx + 20, sbY, mw - 40, PORTRAIT ? 44 : 84, PAL.cardWarm, PAL.ink, 2, 10);
+  if (!PORTRAIT) text('本桌连局胜场记分板', W / 2, sbY + 24, 16, PAL.ink, 'center', '700');
+  const scoreRowY = PORTRAIT ? sbY + 22 : sbY + 56;
+  const active = activeSeats();
+  active.forEach((pIdx, idx) => {
+    const sx = mx + 36 + idx * ((mw - 72) / active.length);
+    text(`${FACTIONS[pIdx].name}: ${sessionWins[pIdx]}胜`, sx + 54, scoreRowY, PORTRAIT ? 12 : 16, FACTIONS[pIdx].color, 'center', '700');
+  });
+
+  // One-tap Rematch & Change Rules
+  const btnY = my + mh - 76;
+  if (PORTRAIT) {
+    drawButton(mx + 16, btnY, 196, 52, '再来一局 (Enter)', FACTIONS[0].color, PAL.white, 16, () => { reset(); scene = 'play'; });
+    drawButton(mx + 220, btnY, 112, 52, '改村规', PAL.cardWarm, PAL.ink, 14, () => { scene = 'title'; });
+  } else {
+    drawButton(mx + 130, btnY, 260, 56, '再来一局 (Enter / R)', FACTIONS[0].color, PAL.white, 19, () => { reset(); scene = 'play'; });
+    drawButton(mx + 414, btnY, 216, 56, '修改村规 (Esc)', PAL.cardWarm, PAL.ink, 17, () => { scene = 'title'; });
+  }
+}
+
+// ---- Fixed-Step Loop & Check Hooks ------------------------------------------------------
+function step() {
+  if (pressed('KeyM')) {
+    setMuted(!muted);
+    hit.delete('KeyM');
+  }
+  scenes[scene].update(STEP);
+  hit.clear();
+}
+let last, acc = 0, ALPHA = 1;
+function tick() {
+  const now = clock.now();
+  acc += Math.min(now - last, 0.25);
+  last = now;
+  while (acc >= STEP) {
+    step();
+    acc -= STEP;
+  }
+  ALPHA = acc / STEP;
+  drawFrame();
+}
+function drawFrame() { scenes[scene].draw(); }
+function frame() { tick(); requestAnimationFrame(frame); }
+function timer() { if (document.visibilityState === 'visible' && clock.now() - last > 0.1) tick(); }
+
+window.game = {
+  get scene() { return scene; },
+  get state() { return state; },
+  press(code) { hit.add(code); },
+  hold(code, on) { on ? down.add(code) : down.delete(code); },
+  get events() { return events; },
+  step(n = 1, draw = true, alpha = 1) {
+    for (let i = 0; i < n; i++) step();
+    if (draw) {
+      ALPHA = alpha;
+      drawFrame();
+    }
+  },
+};
+
+reset();
+scene = params.get('scene') || 'title';
+last = clock.now();
+if (params.get('manual') === '1') drawFrame();
+else {
+  requestAnimationFrame(frame);
+  setInterval(timer, 50);
+}
+</script>
+</body>
+</html>

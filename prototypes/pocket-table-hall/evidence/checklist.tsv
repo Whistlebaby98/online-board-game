@@ -1,0 +1,18 @@
+L1	pass	index.html:60	Sunlit oak/ivory palette (#E9DFCF/#FAF7F2), #2E2620 ink, WCAG calibrated 4 colors, 2-3px card lips, zero emoji verified in code
+L2	pass	index.html:1288	2.5D wooden die (index.html:1179) and 4-color Chinese Aeroplane Chess board with jump track & shortcuts built at index.html:1288
+L3	pass	index.html:84	Static top-down 2.5D tabletop framing in fit() for 1280x720 desktop and 375x540+ portrait without scrollbars
+F1	pass	index.html:1531	Title setup card with 1-4 human/bot seat toggles, 2/3/4 presets, and 5/6 & triple-6 switches at index.html:1531
+F2	pass	index.html:349	Complete 15x15 52-tile outer track, +4 jumps, 12-step shortcuts, knockbacks, and exact-roll bounce at index.html:349
+F3	pass	index.html:1061	Four distinct drawn aircraft silhouettes + geometric bases + dual-channel tile emblems at index.html:1061 (zero emoji)
+F4	pass	index.html:1645	2-step preview-and-confirm quick-pick cards, dashed preview, confirm button, and Space/Enter/1-4/Arrows/Q/W/E/M/H/R bindings
+F5	pass	index.html:1686	Corner house-rule badges (index.html:1686), 3s toast banner (index.html:1842), and 3 drawn reaction icons at index.html:1750
+F6	pass	index.html:887	Named AI bots, 30s countdown, consecutive-timeout auto-pilot handoff and human reclaim at index.html:540 and index.html:887
+F7	not_assessed	index.html:198	Web Audio SFX (index.html:198), mute, and Results/Rematch (index.html:1871) exist in code, but audio output and full match play require human playtest
+S1	pass	index.html:349	Chinese Aeroplane Chess rule engine & house-rule toggles built at index.html:349
+S2	pass	index.html:1778	Sunlit 2.5D tabletop and 375x540px responsive portrait HUD built at index.html:1778
+S3	pass	index.html:326	Local 1-4 human hot-seat + named AI bots thin stand-in built at index.html:326
+M1	pass	index.html:1531	Title card boots directly into seat toggles, presets, and house-rule switches at index.html:1531
+M2	pass	index.html:806	Enter/Start transitions from title to play; roll die shows lifted movable aircraft and numbered quick-pick cards
+M3	not_assessed	index.html:709	Hop animation, trajectory preview, and 3s toast exist in code, but wooden click sound and tactile feel require live human playtest
+C1	not_assessed	index.html:383	Dotted shortcuts and knockback rules exist in code, but 2-3 minute pacing tension requires multi-minute human playtest
+C2	pass	index.html:615	Exact-roll bounce (index.html:366), triple-6 penalty (index.html:623), and 30s timer + auto-pilot (index.html:896) built in code

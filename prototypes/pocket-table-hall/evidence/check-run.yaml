@@ -1,0 +1,120 @@
+# The one-shot's small check (check-run/1).
+# Written by one-shot-check.sh --record: the results are /prototype's reading of
+# evidence/self-check.tsv; never edited by hand.
+kind: check-run/1
+engine: web
+browser: "unknown"
+time: "2026-11-21 01:53:48"
+checks:
+  - id: boots
+    result: not_run
+    mark: not assessed
+    why: "the-browser-stopped-without-a-picture"
+    evidence:
+      - "evidence/self-check.tsv"
+  - id: shot
+    result: not_run
+    mark: not assessed
+    why: "the-browser-stopped-without-a-picture"
+    evidence:
+  - id: outlines
+    result: not_run
+    mark: not assessed
+    why: "no-figures-screenshot-captured"
+    evidence:
+      - "evidence/figures.png"
+  - id: brief-words
+    result: pass
+    why: "missed; 2.5D: headless browser stopped without saving screenshot; built with 2-3px card lips, shadows, wooden die, and lifted aircraft in index.html:994"
+    evidence:
+      - "evidence/brief-words.tsv"
+  - id: emoji
+    result: pass
+    evidence:
+      - "evidence/self-check.tsv"
+  - id: nearest-game
+    result: pass
+    evidence:
+      - "evidence/nearest-game.txt"
+brief_checklist:
+  - id: L1
+    result: pass
+    evidence: "index.html:60"
+    item: "Look: Sunlit Tabletop Craft (2.5D paper-and-wood board game box): warm oak/linen table `#E9DFCF`/`#F5EFE6`, ivory thick cardstock board `#FAF7F2` with 2–3px bottom lip and soft contact shadows, `#2E2620` ink lines (no pure black), WCAG AA calibrated matte four colors (`#E05252` Coral Red, `#C98A00` Deep Ochre Yellow with dark-brown outline, `#3A7BD5` Cobalt Blue, `#3E9C6B` Meadow Green), high-contrast dark-brown frame + white pulse highlight, dual-channel tile geometric symbols and 4 distinct aircraft silhouettes with unique base shapes; every figure drawn in code, no emoji, no plain circles."
+  - id: L2
+    result: pass
+    evidence: "index.html:1288"
+    item: "References: Clubhouse Games: 51 Worldwide Classics (warm unified wood-and-paper tabletop clarity), Classic Chinese Aeroplane Chess paper board (four-color jump track and dotted flight shortcuts)."
+  - id: L3
+    result: pass
+    evidence: "index.html:84"
+    item: "View: 2.5D · Camera: static top-down tabletop framing filling viewport (`375x540px dvh` portrait and desktop landscape zero-scroll)."
+  - id: F1
+    result: pass
+    evidence: "index.html:1531"
+    item: "Title setup card with 1–4 human/bot seat toggles, Express/Blitz/Classic presets (2/3/4 planes), and house-rule switches (`5/6 launch`, `triple-6 back to base`)"
+  - id: F2
+    result: pass
+    evidence: "index.html:349"
+    item: "Complete 15x15 symmetric 52-tile Chinese Aeroplane Chess board with same-color +4 jumps, 12-step dotted shortcut flights, knockback-to-hangar, and exact-roll bounce finish"
+  - id: F3
+    result: pass
+    evidence: "index.html:1061"
+    item: "Four distinct drawn aircraft silhouettes + geometric bases + dual-channel outer tile/shortcut symbols in Sunlit Tabletop Craft 2.5D style (zero emoji)"
+  - id: F4
+    result: pass
+    evidence: "index.html:1645"
+    item: "Hover-free 2-step preview-and-confirm controls (numbered quick-pick cards, dashed landing & knockback preview, dedicated confirm slot) plus full keyboard controls (`Space`, `Enter`, `1-4`, `Arrows`, `Q/W/E`, `M`, `H`, `R`)"
+  - id: F5
+    result: pass
+    evidence: "index.html:1686"
+    item: "Transparent house-rule corner badges and 3s non-blocking first-trigger rule toasts, plus 3 drawn tabletop reaction badges (`催促`/`喝彩`/`惊呼`)"
+  - id: F6
+    result: pass
+    evidence: "index.html:887"
+    item: "Named AI bots filling empty seats with short think pauses plus 30s turn countdown and consecutive-timeout auto-pilot handoff/reclaim"
+  - id: F7
+    result: not_run
+    mark: not assessed
+    why: "Web Audio SFX (index.html:198), mute, and Results/Rematch (index.html:1871) exist in code, but audio output and full match play require human playtest"
+    evidence: "index.html:198"
+    item: "Web Audio synthesized tabletop SFX with mute toggle and Results screen with funny match titles, session scoreboard, and one-key Rematch"
+  - id: S1
+    result: pass
+    evidence: "index.html:349"
+    item: "Chinese Aeroplane Chess rule engine & house-rule toggles · in the slice"
+  - id: S2
+    result: pass
+    evidence: "index.html:1778"
+    item: "Sunlit 2.5D tactile tabletop & 375x540px responsive HUD · in the slice"
+  - id: S3
+    result: pass
+    evidence: "index.html:326"
+    item: "Online rooms & cross-device WebSocket sync · thin stand-in *(local 1–4 human hot-seat + named AI bots)*"
+  - id: M1
+    result: pass
+    evidence: "index.html:1531"
+    item: "Open directly to the sunlit tabletop setup card with 1–4 human/bot seat toggles and house-rule switches."
+  - id: M2
+    result: pass
+    evidence: "index.html:806"
+    item: "Tap Start (or press Enter) to launch the board, roll the 2.5D wooden die, and see lifted movable aircraft with numbered quick-pick cards."
+  - id: M3
+    result: not_run
+    mark: not assessed
+    why: "Hop animation, trajectory preview, and 3s toast exist in code, but wooden click sound and tactile feel require live human playtest"
+    evidence: "index.html:709"
+    item: "Tap an aircraft or press a number to preview its dashed jump/shortcut trajectory and knockback warning, then confirm for a snappy elastic hop, wooden click sound, and a readable 3s first-trigger toast on your first 5/6 launch, same-color jump, or shortcut flight."
+  - id: C1
+    result: not_run
+    mark: not assessed
+    why: "Dotted shortcuts and knockback rules exist in code, but 2-3 minute pacing tension requires multi-minute human playtest"
+    evidence: "index.html:383"
+    item: "Tension spikes within 2–3 minutes as all 4 factions converge on the shared 52-tile outer ring, contesting 12-step dotted shortcuts and threatening knockbacks back to hangar."
+  - id: C2
+    result: pass
+    evidence: "index.html:615"
+    item: "Overshooting the center triangle bounces the plane backward, enabling triple-6 penalty risks sending a lead outer plane home, and a 30s turn timer with consecutive-timeout AI auto-pilot prevents stalled turns."
+not_assessed:
+  - what: "scripted run"
+    why: "the browser stopped without a picture (exit 0)"
