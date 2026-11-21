@@ -105,3 +105,35 @@ Append-only audit trail of decisions made in autonomous mode.
 **Chosen:** `AD-ART-BIBLE: APPROVE` — recorded `Status: Approved` and `AD-ART-BIBLE: APPROVED 2026-11-21` in `design/art/art-bible.md` after full disk re-read and consistency audit across all 9 sections
 **Reason:** All 9 sections at `docs.density: thorough` passed completeness, cross-section hex/lighting/line-rhythm/stamp-angle consistency, WCAG AA & colorblind safety (`CB-1`..`CB-7`), and engine constraint verification.
 **Category:** minor
+
+## 2026-11-21T02:17:00Z — map-systems
+
+**Decision point:** Phase 2: Systems Enumeration (explicit + inferred systems from `design/gdd/game-concept.md`)
+**Options considered:** 12-system initial map vs decomposed 14-system / 5-layer map extracting inferred runtime boundaries (`#2` local persistence, `#12` tactile audio bus, `#14` offline Pass-and-Play port adapter) and separating platform game switching (`#6`) from Alpha-1 Game #2 (`#7`) and Immutable Table Shell (`#9`) from lazy-loaded GameViewAdapters (`#10`)
+**Chosen:** 14-System / 5-Layer decomposition across 7 categories (`Core`, `Gameplay`, `Economy`, `Persistence`, `UI`, `Audio`, `Meta`) with 3 inferred systems (`#2`, `#12`, `#14`) explicitly flagged
+**Reason:** Derived cleanly from `ADR-001` (`shared/client/server` isolation), `art-bible.md` Principle 3, zero-account local persistence/reconnect fallback requirements, and iOS/WeChat Web Audio constraints.
+**Category:** minor
+
+## 2026-11-21T02:17:10Z — map-systems
+
+**Decision point:** Phase 3: Dependency Mapping & `TD-SYSTEM-BOUNDARY` Gate Resolution
+**Options considered:** Leave 12-system boundaries as drafted / Revise all 5 structural boundary defects flagged by `technical-director` `REJECT` and re-verify
+**Chosen:** Revised to 14-System / 5-Layer acyclic DAG (`#4/#7/#8` strictly depend on `#1` ONLY; authoritative `rematch()` & `roomSessionLedger` placed in `#3`; `Week 1 443 WSS Spike` extracted as Milestone 0 gate; `#9` & `#10` split via `GameViewAdapterLoader` in `client/app.ts`; `#3 → #2` scoped to `client/net`; `#12` unidirectional via `#2` observable & event bus) -> passed `TD-SYSTEM-BOUNDARY: APPROVE`
+**Reason:** Eliminated all circular/reverse dependencies, God Object risks, and client/server bundle contamination risks prior to writing any GDD.
+**Category:** minor
+
+## 2026-11-21T02:17:20Z — map-systems
+
+**Decision point:** Phase 4: Priority Tiers & `PR-SCOPE: OPTIMISTIC` Recalibration (`scope_changes` user-confirmed)
+**Options considered:** Adopt Producer recalibration (MVP `6–8 周` / `~145–185h` impl+QA, defer live spectate, custom WeChat anti-swipe-back JS intercept, and reaction particles/tilted stamp border frame to VS; Alpha-1 `+2.5–3.5 周` with hidden-info fork note) / Keep unadjusted `5–7 周` / Compress MVP by also deferring `5A` manual takeover
+**Chosen:** User explicitly selected Option 1 — Adopted Producer recalibration (`MVP 6–8 周`, deferred 3 non-pillar items to VS while keeping `5A` manual takeover, `5B` timeout autopilot, Host Migration, 1–2 house rules + corner tags + 3s Toast, `催/赞/惊` reactions, and Rematch in MVP; Alpha-1 `+2.5–3.5 周`)
+**Reason:** Explicit user `ask_question` decision on `scope_changes` aligns solo part-time capacity (`~20h/week` incl. E2E/QA & 20% buffer) without cutting any Game Pillar.
+**Category:** scope_changes
+
+## 2026-11-21T02:17:30Z — map-systems
+
+**Decision point:** Phase 5: Write `design/gdd/systems-index.md`, `CD-SYSTEMS` Gate Sign-Off & Session Checkpoint
+**Options considered:** Write `design/gdd/systems-index.md` (`docs.density: thorough`), run `CD-SYSTEMS`, record non-blocking handoff guardrails in `production/session-state/active.md` / Defer index write
+**Chosen:** Wrote `design/gdd/systems-index.md` (`TD-SYSTEM-BOUNDARY: APPROVE`, `PR-SCOPE` user-calibrated, `CD-SYSTEMS: APPROVE`), updated status to `Approved`, created `production/session-state/active.md` with checkpoint + 6 CD/TD GDD handoff guardrails
+**Reason:** All 3 Concept systems-mapping director gates (`TD-SYSTEM-BOUNDARY`, `PR-SCOPE` recalibration, `CD-SYSTEMS`) approved cleanly in `autonomous` mode and Concept phase required artifacts are now 4/4 `PRESENT`.
+**Category:** minor
