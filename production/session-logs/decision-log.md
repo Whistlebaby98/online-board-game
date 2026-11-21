@@ -154,3 +154,68 @@ Append-only audit trail of decisions made in autonomous mode.
 **Chosen:** User explicitly accepted the 3 remaining tracked concerns (`Option 1`), appended `### Accepted Risks` and stage transition record to `production/gate-checks/concept-to-systems-design-2026-11-21.md`, dual-wrote `Concept` → `Systems Design` via `.claude/scripts/set-stage.sh "Systems Design"` (`project.yaml` + `production/stage.txt`), updated `production/session-state/active.md`, and checked off stage-gate checkboxes in `design/gdd/game-concept.md` and `design/gdd/systems-index.md`
 **Reason:** All 3 Concept doc/hygiene items closed cleanly in `689a1cc`; remaining 3 items belong structurally to Systems Design & M0 execution and are explicitly tracked under `### Accepted Risks`.
 **Category:** major
+
+
+## 2026-11-21T14:48:00Z — design-system
+
+**Decision point:** Phase 2e Technical Feasibility & Start Confirmation (`game-module-contract`)
+**Options considered:** Proceed with noted Zero-DOM constraint & missing `modules/core.md` engine reference disclosure / Add constraint first / Pause
+**Chosen:** Proceed with constraints noted (`docs/engine-reference/web/VERSION.md` `Knowledge Gap: HIGH`; `no engine reference for 'core' under docs/engine-reference/web/modules/` disclosed in Overview & Summary)
+**Reason:** Pure Foundation TS contract avoids engine rendering APIs and defers tsconfig DOM-free split to `ADR-001`.
+**Category:** minor
+
+## 2026-11-21T14:48:05Z — design-system
+
+**Decision point:** Section A Overview Multi-Tab Framing (`Framing`, `ADR ref`, `Fantasy`)
+**Options considered:** Framing (`[A]` Data/infra / `[B]` Player effect / `[C]` Both); ADR ref (`[A]` Cite ADR / `[B]` No existing ADR yet); Fantasy (`[A]` Direct / `[B]` Indirect infra)
+**Chosen:** Framing=`[A]` As a data/infrastructure layer; ADR ref=`[B]` No (defer `shared/` split & codecs to `→ becomes ADR-001`); Fantasy=`[B]` Pure infrastructure players feel indirectly
+**Reason:** Matches Section 4 framing rules for `Category: Core` / `Layer: Foundation` with 0 existing ADRs in `docs/architecture/`.
+**Category:** minor
+
+## 2026-11-21T14:48:10Z — design-system
+
+**Decision point:** Section B Player Fantasy Framing & `creative-director` Lens Candidate Selection
+**Options considered:** Framing (`[A] Direct` / `[B] Indirect` / `[C] Both`); Candidate anchors (1: Invisible zero-dispute tabletop referee & rule stamps / 2: One oak table swap-sheet continuity / 3: Unrigged fair wood die & card privacy)
+**Chosen:** Framing=`[B] Indirect`; Primary anchor=Candidate 1 integrating Candidate 2 (P4 multi-game continuity) and Candidate 3 (Anti-Pillar fair-dice & view isolation)
+**Reason:** Derived from `Category: Core` framing rule; all three candidates align cleanly with P2, P3, P4, and Anti-Pillars without conflict.
+**Category:** minor
+
+## 2026-11-21T14:48:15Z — design-system
+
+**Decision point:** Section C Detailed Design Specialist Tension Resolution (`systems-designer` + `gameplay-programmer` + `engine-programmer`)
+**Options considered:** Rich generic UI/FX DSL embedded in `#1` metadata vs minimal rule stubs requiring hardcoded UI in `#11`/`#13` vs slim declarative business-semantic metadata (`stampCategory`, `firstTriggerToastTemplate`, `GameEvent.ruleTag`, `MatchHighlight[]`) without visual/DOM properties
+**Chosen:** Slim declarative business-semantic metadata with zero visual hex/DOM coordinates (`GameModule<TState, TAction, TRules, TView>`, discriminated `ActionError` union, `getTurnState()`, `getViewForPlayer()` stripping `rngState`, `GameRegistry`, Mulberry32 `RngPort`)
+**Reason:** Resolves tension between 100% data-driven `#11/#13` UI and `TD-FEASIBILITY` prohibition against over-abstracting a cross-game rendering engine, keeping `shared/core <= 4KB gzip`.
+**Category:** minor
+
+## 2026-11-21T14:48:20Z — design-system
+
+**Decision point:** Section D Formulas, Boundary Guards & Damping Bounds (`lens-systems-designer`)
+**Options considered:** Raw summed event delays & plain modulo RNG vs piecewise chain-compressed `calc_anim_duration_ms` (`800ms`/`1500ms`/`0.72`/`max_events=32`), rejection-sampled Mulberry32 `rng_next_int` (`seed=0 -> 0x9E3779B9`, `span<=0` fail-fast), priority-ranked `rule_deviation_count` (`max_visible=4`), and `fuzz_max_turns_per_match=500` damping
+**Chosen:** All 3 canonical formulas + cross-knob invariant (`max_single_step_ms <= max_chain_ms`) + `fuzz_max_turns_per_match=500` loop damping
+**Reason:** Eliminates modulo bias, V8/WebKit float divergence, negative/infinite animation storms, and mobile `375×540px dvh` badge overflow.
+**Category:** minor
+
+## 2026-11-21T14:48:25Z — design-system
+
+**Decision point:** Section E Edge Cases (`13` boundary & error-code resolutions) and Section F Dependencies (`11` provisional downstream dependents)
+**Options considered:** Defer simultaneous-turn / hidden-info null spectator / `deepFreeze` invariants until `#7/#8` vs lock all 13 deterministic error codes and invariants in `#1` now
+**Chosen:** Locked all 13 explicit If-Outcome rules and all 11 `[Provisional]` downstream interface rows (`Upstream: None`)
+**Reason:** Prevents breaking contract rewrites when `#3, #4, #5, #6, #7, #8, #9, #10, #11, #13, #14` GDDs are authored.
+**Category:** minor
+
+## 2026-11-21T14:48:30Z — design-system
+
+**Decision point:** Section G Tuning Knobs, Optional Sections (`N/A` Core boundaries, `Cross-References`, `Open Questions`), and Section H Acceptance Criteria (`lens-qa-lead`)
+**Options considered:** Skip optional N/A template sections vs fill explicit Core N/A metadata boundaries + `Cross-References` + `Open Questions` alongside 6 Tuning Knobs (`data file`) and 14 measurable `GIVEN/WHEN/THEN` ACs (`AC-1..AC-14`)
+**Chosen:** Populated all 6 knobs with bidirectional `Interacting Knobs`, explicit N/A Core handoff notes (no UI/Asset false flags), full `Cross-References`, 3 owned `Open Questions`, and `AC-1..AC-14` (`<= 4KB gzip`, `applyAction <= 2ms`, `pickBotAction <= 5ms`, `1,000`-match fuzz)
+**Reason:** Satisfies `workflow: full` / `review_mode: full` completeness rules while leaving zero `[To be designed]` placeholders.
+**Category:** minor
+
+## 2026-11-21T14:48:35Z — design-system
+
+**Decision point:** Phase 5 Post-Design Validation (`Summary`, `CD-GDD-ALIGN: APPROVED`, `entities.yaml` registration of `11` entries, `systems-index.md` Status update)
+**Options considered:** Keep `Status: In Design` / omit registry vs complete `CD-GDD-ALIGN` inline audit, mark `Status: Designed`, register `3` formulas + `8` constants in `design/registry/entities.yaml` (using only existing disk paths), and update `#1` row + Progress Tracker (`1/9 MVP`) in `systems-index.md`
+**Chosen:** Approved `CD-GDD-ALIGN: APPROVED 2026-11-21`, set `Status: Designed`, registered 11 validated facts (`registry.sh validate` `0` errors), and updated `systems-index.md` + `active.md`
+**Reason:** Registry append and systems-index status update are `minor` data-file updates under `autonomous` mode; independent `/design-review` preserved for fresh session per §5c.
+**Category:** minor

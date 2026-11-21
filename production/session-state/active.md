@@ -3,17 +3,20 @@
 <!-- STATUS -->
 Epic:
 Feature: Systems Design Phase (MVP 9 Systems)
-Task: Ready to author #1 GameModule GDD
+Task: game-module-contract GDD
+Status: Designed (pending fresh-session /design-review)
+File: design/gdd/game-module-contract.md
+Sections: Summary, Overview, Player Fantasy, Detailed Design, Formulas, Edge Cases, Dependencies, Tuning Knobs, Visual/Audio Requirements, Game Feel, UI Requirements, Cross-References, Acceptance Criteria, Open Questions
 <!-- /STATUS -->
 
 <!-- CHECKPOINT -->
 **Updated:** 2026-11-21
 **Branch:** `main`
-**Current task:** Stage advanced `Concept` -> `Systems Design` via `/gate-check systems-design` (`Accepted Risks` logged)
-**Next step:** Run `/design-system game-module-contract` to author `#1 GameModule 规则契约、规则元数据与确定性随机内核`
+**Current task:** Completed `#1 GameModule 规则契约、规则元数据与确定性随机内核` GDD (`Status: Designed`, `CD-GDD-ALIGN: APPROVED 2026-11-21`) and registered 11 cross-system facts (`3` formulas + `8` constants) in `design/registry/entities.yaml`
+**Next step:** Open a fresh session to run `/design-review design/gdd/game-module-contract.md`, or proceed to `#2` via `/design-system client-local-persistence`
 **Blocked on:** `nothing`
 **Files in progress:** `none`
-**Open questions:** Week 1 443 WSS domain/TLS/VPS hosting pick (Milestone 0); default `2`- vs `3`-plane Express Classic simulation lock in `#4` GDD; Alpha-1 Game #2 open- vs hidden-info selection
+**Open questions:** Week 1 443 WSS domain/TLS/VPS hosting pick (Milestone 0); default `2`- vs `3`-plane Express Classic simulation lock in `#4` GDD; Alpha-1 Game #2 open- vs hidden-info selection; `ADR-001` Zero-DOM tsconfig layout in Technical Setup
 <!-- /CHECKPOINT -->
 
 ---

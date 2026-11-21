@@ -54,7 +54,7 @@
 #   in any other shape is reported as unsupported layout, with its number.
 
 version: 1
-last_updated: ""
+last_updated: "2026-11-21"
 
 # ─── ENTITIES ────────────────────────────────────────────────────────────────
 # Named game-world objects: enemies, NPCs, characters, factions, bosses.
@@ -123,7 +123,58 @@ items: []
 #   output_range[min, max], added
 # Optional: expression (the actual formula), notes
 
-formulas: []
+formulas:
+  - name: calc_anim_duration_ms
+    status: active
+    source: design/gdd/game-module-contract.md
+    referenced_by:
+      - design/gdd/game-module-contract.md
+    variables:
+      - animated_event_count
+      - first_event_ms
+      - raw_sum_ms
+      - max_single_step_ms
+      - max_chain_ms
+      - chain_compression_ratio
+      - max_events_per_action
+    output_range: [0, 1500]
+    expression: "0 if count==0; min(max_single_step_ms, raw_sum_ms) if count==1; min(max_chain_ms, round(first_event_ms + (raw_sum_ms - first_event_ms) * chain_compression_ratio)) if count>=2"
+    notes: "Computes Pillar 2 single/chained animation budget in ms (up to max_events_per_action=32 events)."
+    added: 2026-11-21
+    revised: ""
+
+  - name: rng_next_int
+    status: active
+    source: design/gdd/game-module-contract.md
+    referenced_by:
+      - design/gdd/game-module-contract.md
+    variables:
+      - rng_state
+      - min_inclusive
+      - max_inclusive
+      - span
+      - limit
+    output_range: [-2147483648, 2147483647]
+    expression: "min_inclusive + (u mod span) for first Mulberry32 uint32 u < floor(4294967296 / span) * span"
+    notes: "Unbiased rejection-sampled 32-bit projection over Mulberry32; seed 0 normalizes to 0x9E3779B9."
+    added: 2026-11-21
+    revised: ""
+
+  - name: rule_deviation_count
+    status: active
+    source: design/gdd/game-module-contract.md
+    referenced_by:
+      - design/gdd/game-module-contract.md
+    variables:
+      - rule_deviation_count
+      - max_visible_rule_badges
+      - visible_badge_count
+      - overflow_badge_count
+    output_range: [0, 16]
+    expression: "visible_badge_count = min(max_visible_rule_badges, rule_deviation_count); overflow_badge_count = max(0, rule_deviation_count - max_visible_rule_badges)"
+    notes: "Ranks vermilion_mod ahead of indigo_preset for corner rule badges and +N overflow pill."
+    added: 2026-11-21
+    revised: ""
 
 # Example:
 #
@@ -156,7 +207,92 @@ formulas: []
 #
 # Required fields: name, status, source, referenced_by, value, unit, added
 
-constants: []
+constants:
+  - name: max_single_step_ms
+    status: active
+    source: design/gdd/game-module-contract.md
+    referenced_by:
+      - design/gdd/game-module-contract.md
+      - design/gdd/game-concept.md
+      - design/art/art-bible.md
+    value: 800
+    unit: ms
+    added: 2026-11-21
+    revised: ""
+
+  - name: max_chain_ms
+    status: active
+    source: design/gdd/game-module-contract.md
+    referenced_by:
+      - design/gdd/game-module-contract.md
+      - design/gdd/game-concept.md
+      - design/art/art-bible.md
+    value: 1500
+    unit: ms
+    added: 2026-11-21
+    revised: ""
+
+  - name: chain_compression_ratio
+    status: active
+    source: design/gdd/game-module-contract.md
+    referenced_by:
+      - design/gdd/game-module-contract.md
+    value: 0.72
+    unit: ratio
+    added: 2026-11-21
+    revised: ""
+
+  - name: max_visible_rule_badges
+    status: active
+    source: design/gdd/game-module-contract.md
+    referenced_by:
+      - design/gdd/game-module-contract.md
+    value: 4
+    unit: badges
+    added: 2026-11-21
+    revised: ""
+
+  - name: max_events_per_action
+    status: active
+    source: design/gdd/game-module-contract.md
+    referenced_by:
+      - design/gdd/game-module-contract.md
+    value: 32
+    unit: events
+    added: 2026-11-21
+    revised: ""
+
+  - name: fuzz_max_turns_per_match
+    status: active
+    source: design/gdd/game-module-contract.md
+    referenced_by:
+      - design/gdd/game-module-contract.md
+    value: 500
+    unit: turns
+    added: 2026-11-21
+    revised: ""
+
+  - name: platform_min_players
+    status: active
+    source: design/gdd/game-module-contract.md
+    referenced_by:
+      - design/gdd/game-module-contract.md
+      - design/gdd/game-concept.md
+    value: 2
+    unit: players
+    added: 2026-11-21
+    revised: ""
+
+  - name: platform_max_players
+    status: active
+    source: design/gdd/game-module-contract.md
+    referenced_by:
+      - design/gdd/game-module-contract.md
+      - design/gdd/game-concept.md
+    value: 4
+    unit: players
+    added: 2026-11-21
+    revised: ""
 
 # Example:
 #

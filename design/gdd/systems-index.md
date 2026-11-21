@@ -56,7 +56,7 @@
 
 | # | System Name | Category | Priority | Status | Design Doc | Depends On |
 |---|-------------|----------|----------|--------|------------|------------|
-| 1 | GameModule 规则契约、规则元数据与确定性随机内核 | Core | MVP | Not Started | — | — |
+| 1 | GameModule 规则契约、规则元数据与确定性随机内核 | Core | MVP | Designed | design/gdd/game-module-contract.md | — |
 | 2 | 客户端本地偏好与重连凭证存储 (inferred) | Persistence | MVP | Not Started | — | — |
 | 3 | 权威房间核心、会话端口与实时同步 | Core | MVP | Not Started | — | GameModule 规则契约、规则元数据与确定性随机内核, 客户端本地偏好与重连凭证存储 (inferred)（仅 client/net 子层） |
 | 4 | 中式经典飞行棋规则与村规引擎 | Gameplay | MVP | Not Started | — | GameModule 规则契约、规则元数据与确定性随机内核 |
@@ -196,10 +196,10 @@
 | Metric | Count |
 |--------|-------|
 | Total systems identified | 14 |
-| Design docs started | 0 |
+| Design docs started | 1 |
 | Design docs reviewed | 0 |
 | Design docs approved | 0 |
-| MVP systems designed | 0/9 |
+| MVP systems designed | 1/9 |
 | Vertical Slice systems designed | 0/1 |
 
 ---
