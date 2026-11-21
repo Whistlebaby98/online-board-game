@@ -51,5 +51,15 @@
 - All 3 required artifacts and all 4 quality checks pass cleanly with 0 blockers; 3 of 4 Phase-Gate directors returned `CONCERNS` (`AD: READY`), resulting in an overall **`CONCERNS`** verdict.
 - `Chain-of-Verification: 5 questions checked (including 2 [TOOL ACTION] checks: concept placeholder & artifact-check re-run + Visual Identity Anchor & checklist.tsv re-read) — verdict unchanged (CONCERNS)`
 
+### Accepted Risks
+- **Resolved Doc/Hygiene Concerns (`689a1cc`, closed prior to stage advance):**
+  1. Concept baseline synchronized across `design/gdd/game-concept.md`, `design/art/art-bible.md`, and `design/gdd/systems-index.md` (`6–8 周` MVP scope, 3 deferred VS items, `5A` manual AI takeover, persistent die-result banner).
+  2. Pinned Web toolchain reference created at `docs/engine-reference/web/VERSION.md` (`vite 8.3.4`, `typescript 7.0.2`, `vitest 5.0.5`, `@playwright/test 1.64.1`, `vite-plugin-singlefile 2.3.3`, `node v22.20.0`) and cross-referenced in `design/art/art-bible.md`.
+  3. `.claude/docs/technical-preferences.md` cleaned of `[TO BE CONFIGURED]` placeholders (`lead-programmer` / `N/A (Web)` + `Signals/Events` naming clarified).
+- **Remaining Tracked Concerns Explicitly Accepted by User (`2026-11-21`, carry forward into Systems Design):**
+  1. **M0 443 WSS Hosting & Shared-Code Verification Boundary (`TD-PHASE-GATE`):** Procure/verify `Milestone 0` (`Week 1 443 WSS Spike`) domain, TLS, and non-sleeping VPS host before full networked implementation; enforce host-agnostic `#3` GDD declaring zero-DOM `shared/` boundary, `TestClock` injection, and multi-client WS E2E targets.
+  2. **Express Classic Flight Math Lock & Real-Phone Checks (`CD/AD-PHASE-GATE`):** Run mathematical + real-chat turn-pacing simulation inside `#4` GDD to lock default `2`- vs `3`-plane Express Classic (10–15m target); validate `375×540px dvh` real-phone touch targets and `CB-1..CB-7` filters during `#9/#10` & M0.
+  3. **Stage 2 Time-Box & MVP Playtest Safeguards (`PR/CD-PHASE-GATE`):** Author only the 9 MVP system GDDs first with streamlined depth for `S`-sized systems (`#1/#2/#11/#12`); include MVP safeguards in `#9/#11` (high-contrast `#B83227`/`#2D4E7E` house-rule badges + `2.5–3.5s` Toast, warm full-room / `5C` offline-seat-claim prompt, and `8px` CSS WeChat edge margin).
+
 ### Stage Update
-- **Not advanced yet**: Per explicit user decision on 2026-11-21, `project.stage` remains **`Concept`** while immediate documentation/hygiene concerns (#1, #2, and #5 hygiene) are closed and verified before confirming stage transition to `Systems Design`.
+- **Advanced:** `Concept` → **`Systems Design`** (`2026-11-21` via `.claude/scripts/set-stage.sh "Systems Design"` after explicit user acceptance of the 3 remaining tracked concerns above).

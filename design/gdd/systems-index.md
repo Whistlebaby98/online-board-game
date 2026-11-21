@@ -207,7 +207,7 @@
 ## Next Steps
 
 - [x] 通过 `CD-SYSTEMS` 门禁评审并锁定 `design/gdd/systems-index.md`
-- [ ] 运行 `/gate-check systems-design` 完成 **Concept → Systems Design** 阶段准出核验（此时 Concept 阶段全部 4 项必选产物已齐备）
+- [x] 运行 `/gate-check systems-design` 完成 **Concept → Systems Design** 阶段准出核验（此时 Concept 阶段全部 4 项必选产物已齐备）
 - [ ] 在全面联机编码前提前筹备 **Milestone 0（Week 1 443 WSS Spike）** 域名、TLS 与非休眠主机资源
 - [ ] 按 Recommended Design Order 从 **#1 `GameModule 规则契约、规则元数据与确定性随机内核`**（或直接运行 `/map-systems next` / `/design-system`）开始逐系统编写 GDD
 - [ ] 每完成一份系统 GDD 即在独立审查上下文运行 `/design-review design/gdd/[system].md`

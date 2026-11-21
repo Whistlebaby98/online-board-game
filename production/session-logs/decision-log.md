@@ -145,3 +145,12 @@ Append-only audit trail of decisions made in autonomous mode.
 **Chosen:** User explicitly selected Option 1 — write `production/gate-checks/concept-to-systems-design-2026-11-21.md` (`Verdict: CONCERNS`, `project.stage` kept at `Concept`), close Concerns #1, #2, and #5 hygiene immediately, push to GitHub, then ask user to confirm accepting the remaining 3 next-stage tracked concerns to advance to `Systems Design`
 **Reason:** Gate checks are exempt from `autonomous` auto-advance and explicitly honor user control; resolving doc drift before Systems Design prevents GDD contradictions across all 9 MVP systems.
 **Category:** minor
+
+
+## 2026-11-21T04:13:50Z — gate-check
+
+**Decision point:** Concept → Systems Design Stage Transition (`CONCERNS` Accepted Risks Sign-Off)
+**Options considered:** Accept remaining 3 next-stage tracked concerns (`M0` 443 WSS hosting/boundary prep, `#4` `2`- vs `3`-plane Express Classic math lock & real-phone checks, Stage 2 time-box + `#9/#11` MVP safeguards) and advance `project.stage` to `Systems Design` / Re-run gate check after additional edits / Defer transition
+**Chosen:** User explicitly accepted the 3 remaining tracked concerns (`Option 1`), appended `### Accepted Risks` and stage transition record to `production/gate-checks/concept-to-systems-design-2026-11-21.md`, dual-wrote `Concept` → `Systems Design` via `.claude/scripts/set-stage.sh "Systems Design"` (`project.yaml` + `production/stage.txt`), updated `production/session-state/active.md`, and checked off stage-gate checkboxes in `design/gdd/game-concept.md` and `design/gdd/systems-index.md`
+**Reason:** All 3 Concept doc/hygiene items closed cleanly in `689a1cc`; remaining 3 items belong structurally to Systems Design & M0 execution and are explicitly tracked under `### Accepted Risks`.
+**Category:** major

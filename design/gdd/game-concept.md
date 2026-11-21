@@ -351,4 +351,4 @@
 - [x] **制作浏览器核心原型**（`prototypes/pocket-table-hall/`，`db976eb` 实玩 `PROCEED`：验证 3 机飞跃玩法、常驻骰点凭证、中文标注反应按键、2.5D 纸木触感与 `5A` 手动 AI 接管；4 人真机触控与聊天节奏将于 `#4/#9/#10` 与 M0 补测）
 - [x] **制定视觉圣经**（`design/art/art-bible.md`，`AD-ART-BIBLE: APPROVE`）
 - [x] **拆解系统地图**（`design/gdd/systems-index.md`，14 系统 / 5 层 `TD/PR/CD` 签收通过）
-- [ ] **阶段准出与推进至 Systems Design**：确认 `/gate-check systems-design` 门禁推进，随后进入 `/design-system`（由 `#1 GameModule` 起步）与 `/create-architecture`（含 `ADR-001`）
+- [x] **阶段准出与推进至 Systems Design**：确认 `/gate-check systems-design` 门禁推进，随后进入 `/design-system`（由 `#1 GameModule` 起步）与 `/create-architecture`（含 `ADR-001`）

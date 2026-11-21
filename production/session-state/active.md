@@ -2,15 +2,15 @@
 
 <!-- STATUS -->
 Epic:
-Feature: Concept → Systems Design Gate & Doc Hygiene Closure
-Task: Save gate report (CONCERNS) & close Concept doc/hygiene items before stage advance
+Feature: Systems Design Phase (MVP 9 Systems)
+Task: Ready to author #1 GameModule GDD
 <!-- /STATUS -->
 
 <!-- CHECKPOINT -->
 **Updated:** 2026-11-21
 **Branch:** `main`
-**Current task:** Saved `/gate-check systems-design` report (`CONCERNS`, 0 blockers) & closed doc hygiene items (Concerns #1, #2, #5 hygiene); `project.stage` remains `Concept` pending user confirmation
-**Next step:** Confirm accepting remaining 3 next-stage tracked concerns (M0 hosting prep, `#4` 2-vs-3 plane math lock, Stage 2 time-box) to advance stage via `set-stage.sh "Systems Design"`, or re-run `/gate-check systems-design`
+**Current task:** Stage advanced `Concept` -> `Systems Design` via `/gate-check systems-design` (`Accepted Risks` logged)
+**Next step:** Run `/design-system game-module-contract` to author `#1 GameModule 规则契约、规则元数据与确定性随机内核`
 **Blocked on:** `nothing`
 **Files in progress:** `none`
 **Open questions:** Week 1 443 WSS domain/TLS/VPS hosting pick (Milestone 0); default `2`- vs `3`-plane Express Classic simulation lock in `#4` GDD; Alpha-1 Game #2 open- vs hidden-info selection
