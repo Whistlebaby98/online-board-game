@@ -2,18 +2,18 @@
 
 <!-- STATUS -->
 Epic:
-Feature: Concept Phase Deliverables & Systems Decomposition
-Task: Systems decomposition
+Feature: Concept → Systems Design Gate & Doc Hygiene Closure
+Task: Save gate report (CONCERNS) & close Concept doc/hygiene items before stage advance
 <!-- /STATUS -->
 
 <!-- CHECKPOINT -->
 **Updated:** 2026-11-21
 **Branch:** `main`
-**Current task:** Completed `/map-systems` (`design/gdd/systems-index.md` approved by TD/PR/CD; all 4 Concept required artifacts now PRESENT)
-**Next step:** Run `/gate-check systems-design` (Concept → Systems Design gate) or start `/design-system` on `#1 GameModule 规则契约、规则元数据与确定性随机内核`
+**Current task:** Saved `/gate-check systems-design` report (`CONCERNS`, 0 blockers) & closed doc hygiene items (Concerns #1, #2, #5 hygiene); `project.stage` remains `Concept` pending user confirmation
+**Next step:** Confirm accepting remaining 3 next-stage tracked concerns (M0 hosting prep, `#4` 2-vs-3 plane math lock, Stage 2 time-box) to advance stage via `set-stage.sh "Systems Design"`, or re-run `/gate-check systems-design`
 **Blocked on:** `nothing`
 **Files in progress:** `none`
-**Open questions:** Week 1 443 WSS domain/TLS/VPS hosting pick (Milestone 0 before production); Alpha-1 Game #2 open-info vs hidden-info choice before Alpha-1 kickoff
+**Open questions:** Week 1 443 WSS domain/TLS/VPS hosting pick (Milestone 0); default `2`- vs `3`-plane Express Classic simulation lock in `#4` GDD; Alpha-1 Game #2 open- vs hidden-info selection
 <!-- /CHECKPOINT -->
 
 ---

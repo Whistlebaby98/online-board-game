@@ -137,3 +137,11 @@ Append-only audit trail of decisions made in autonomous mode.
 **Chosen:** Wrote `design/gdd/systems-index.md` (`TD-SYSTEM-BOUNDARY: APPROVE`, `PR-SCOPE` user-calibrated, `CD-SYSTEMS: APPROVE`), updated status to `Approved`, created `production/session-state/active.md` with checkpoint + 6 CD/TD GDD handoff guardrails
 **Reason:** All 3 Concept systems-mapping director gates (`TD-SYSTEM-BOUNDARY`, `PR-SCOPE` recalibration, `CD-SYSTEMS`) approved cleanly in `autonomous` mode and Concept phase required artifacts are now 4/4 `PRESENT`.
 **Category:** minor
+
+## 2026-11-21T03:28:30Z — gate-check
+
+**Decision point:** Concept → Systems Design Gate (`CONCERNS`, 0 Blockers: `CD: CONCERNS`, `TD: CONCERNS`, `PR: CONCERNS`, `AD: READY`)
+**Options considered:** Write gate report without advancing stage and close documentation hygiene concerns (#1 `game-concept.md` baseline sync, #2 `docs/engine-reference/web/VERSION.md`, #5 `technical-preferences.md` hygiene) first / Accept all 5 concerns immediately and advance stage / Hold without writing files
+**Chosen:** User explicitly selected Option 1 — write `production/gate-checks/concept-to-systems-design-2026-11-21.md` (`Verdict: CONCERNS`, `project.stage` kept at `Concept`), close Concerns #1, #2, and #5 hygiene immediately, push to GitHub, then ask user to confirm accepting the remaining 3 next-stage tracked concerns to advance to `Systems Design`
+**Reason:** Gate checks are exempt from `autonomous` auto-advance and explicitly honor user control; resolving doc drift before Systems Design prevents GDD contradictions across all 9 MVP systems.
+**Category:** minor

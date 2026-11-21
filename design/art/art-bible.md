@@ -639,7 +639,7 @@
 
 > **采信基准与验证边界声明**：本技术视角严格采信项目唯一真值源 **`project.yaml`**（`engine.name: Web`, `version: 8.3.4`, `language: TypeScript`, `rendering: Canvas 2D`, `physics: none`）、**`.claude/docs/technical-preferences.md`**（Target Platforms: Web 手机竖屏优先 + 桌面浏览器；Gamepad: None；`60fps / 16.6ms` 帧预算；首屏关键路径 `≤ 200KB gzip`；`Fast 4G` 可交互 `≤ 2.0s`）、**`design/gdd/game-concept.md`**、**`vite.config.ts`** 与 **`.claude/engines/web/README.md`**。
 >
-> **缺失参照显式注明**：当前项目仓库中**尚未生成或存放 `docs/engine-reference/web/VERSION.md`**（即使 `CLAUDE.md` 中存在该导入路径声明），因此**一切超出上述项目实存配置文件、涉及浏览器底层 Canvas 2D GPU 光栅缓存阈值或特定内核纹理上传行为的细节均明确标注为 `unverified`（未核验）**，本节严禁以“一般浏览器经验”冒充已验证规范。
+> **缺失参照显式注明**：本节原定初稿阶段尚未建立引擎版本参考文件，现已于 `docs/engine-reference/web/VERSION.md` 按 `package.json` 补全工具链锁定基准；但**一切超出项目配置文件、涉及各端浏览器底层 Canvas 2D GPU 光栅缓存阈值或特定内核 `shadowBlur` 实际耗时曲线的细节，在真机 Milestone 0 实测前仍明确标注为 `unverified`（未核验）**，严禁以“一般浏览器经验”冒充实测结论。
 
 | 技术检查维度 | 本项目硬性数值约束与实操规则 | 直接服务的项目预算 / 实证来源 |
 | ---- | ---- | ---- |

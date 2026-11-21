@@ -31,7 +31,7 @@
 
 - **Classes**: PascalCase (e.g., `GameHook`)
 - **Variables**: camelCase (e.g., `newState()`)
-- **Signals/Events**: on<Event> (`on_event_name`)
+- **Signals/Events**: TypeScript callback handlers `on<Event>` (camelCase, e.g., `onTurnTimeout`); event bus / protocol event keys `snake_case` matching `project.yaml` (`naming.signals: on_event_name`, e.g., `on_turn_timeout`)
 - **Files**: kebab-case (e.g., `rules.ts`)
 - **Scenes/Prefabs**: snake_case
 - **Constants**: SCREAMING_SNAKE (e.g., `STEP`)
@@ -84,9 +84,9 @@
 
 | File Extension / Type | Specialist to Spawn |
 |-----------------------|---------------------|
-| Game code (primary language) | [TO BE CONFIGURED] |
-| Shader / material files | [TO BE CONFIGURED] |
-| UI / screen files | [TO BE CONFIGURED] |
-| Scene / prefab / level files | [TO BE CONFIGURED] |
-| Native extension / plugin files | [TO BE CONFIGURED] |
+| Game code (primary language) | lead-programmer |
+| Shader / material files | lead-programmer (Canvas 2D / CSS gradients — no GLSL shaders) |
+| UI / screen files | lead-programmer |
+| Scene / prefab / level files | lead-programmer (board layout & GameModule scenes) |
+| Native extension / plugin files | N/A (Web target; general architecture review -> Primary) |
 | General architecture review | Primary |
